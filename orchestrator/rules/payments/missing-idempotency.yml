@@ -1,0 +1,27 @@
+rules:
+  - id: payments.missing-idempotency
+    languages: [python]
+    severity: WARNING
+    message: >
+      Payment-mutating endpoint appears to lack idempotency-key handling.
+      Replays can cause duplicate charges. Require an Idempotency-Key header
+      and persist (key, response) for a TTL to deduplicate retries.
+    metadata:
+      category: payments
+      cwe: ["CWE-841: Improper Enforcement of Behavioral Workflow"]
+      owasp: ["A04:2021 Insecure Design"]
+      pci: ["6.5"]
+    patterns:
+      - pattern-either:
+          - pattern: |
+              @$APP.post($URL, ...)
+              def $F(...):
+                ...
+          - pattern: |
+              @$APP.route($URL, methods=["POST"])
+              def $F(...):
+                ...
+      - metavariable-regex:
+          metavariable: $URL
+          regex: '(?i).*(pay|charge|transfer|debit|credit|refund|order|capture|authori[sz]e)'
+      - pattern-not-regex: '(?i)idempot(?:enc|ent)'

@@ -1,0 +1,40 @@
+rules:
+  - id: payments.java.amount-tampering
+    languages: [java]
+    severity: ERROR
+    message: >
+      Payment amount from a request DTO flows directly into a charge or
+      persistence call with no server-side reconciliation against the
+      authoritative order/invoice. Always look up the canonical amount from
+      the order record on the server and ignore any client-supplied value.
+    metadata:
+      category: payments
+      cwe: ["CWE-345: Insufficient Verification of Data Authenticity"]
+      owasp: ["A04:2021 Insecure Design", "A08:2021 Software and Data Integrity Failures"]
+      pci: ["6.5"]
+    paths:
+      exclude:
+        - "*Converter*.java"
+        - "*Mapper*.java"
+        - "*Translator*.java"
+        - "*Repository*.java"
+        - "*Dto*.java"
+    pattern-either:
+      # request.getAmount() passed directly to a charge/payment service method
+      - patterns:
+          - pattern: $SVC.$METHOD($SRC.getAmount(), ...)
+          - metavariable-regex:
+              metavariable: $SRC
+              regex: '(?i)^(request|req|command|cmd|input|payload|body|form|dto)$'
+          - metavariable-regex:
+              metavariable: $METHOD
+              regex: '(?i)(charge|processPayment|createCharge|capturePayment|submitPayment|authorise|authorize)'
+      # entity.setAmount(request.getAmount()) then saved
+      - patterns:
+          - pattern: |
+              $PAY.setAmount($SRC.getAmount());
+              ...
+              $REPO.save($PAY);
+          - metavariable-regex:
+              metavariable: $SRC
+              regex: '(?i)^(request|req|command|cmd|input|payload|body|form|dto)$'

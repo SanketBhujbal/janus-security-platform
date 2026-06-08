@@ -1,0 +1,25 @@
+rules:
+  - id: payments.dotnet.sql-injection
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      SQL command text built by string interpolation or concatenation with
+      caller-controlled input. Use parameterized queries (SqlCommand.Parameters.Add
+      with @-prefixed placeholders) or EF Core query objects. Critical for
+      payment systems where attackers can extract card-holder data.
+    metadata:
+      category: payments
+      cwe: ["CWE-89: SQL Injection"]
+      owasp: ["A03:2021 Injection"]
+      pci: ["6.5.1"]
+    pattern-either:
+      - pattern: new SqlCommand($"...{$X}...", ...)
+      - pattern: new SqlCommand($"...{$X}...")
+      - pattern: |
+          $CMD.CommandText = $"...{$X}..."
+      - pattern: |
+          $CMD.CommandText = "..." + $X + "..."
+      - pattern: |
+          $CMD.CommandText = "..." + $X
+      - pattern: |
+          $CMD.CommandText = string.Format("...{...}...", $X, ...)

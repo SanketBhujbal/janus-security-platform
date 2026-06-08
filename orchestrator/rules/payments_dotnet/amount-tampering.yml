@@ -1,0 +1,57 @@
+rules:
+  - id: payments.dotnet.amount-tampering
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      Payment amount flows from a request model directly to a transaction
+      record or charge call, with no server-side reconciliation against the
+      authoritative order/invoice. Always look up the true amount server-side
+      and ignore any client-supplied amount.
+    metadata:
+      category: payments
+      cwe: ["CWE-345: Insufficient Verification of Data Authenticity"]
+      owasp: ["A04:2021 Insecure Design", "A08:2021 Software and Data Integrity Failures"]
+      pci: ["6.5"]
+    # Skip files whose job is DTO mapping / DB persistence -- domain-to-domain
+    # amount copies there are by design, not vulnerabilities.
+    paths:
+      exclude:
+        - "*Converter*.cs"
+        - "*Mapper*.cs"
+        - "*Translator*.cs"
+        - "*ToDomain*.cs"
+        - "*ToRequest*.cs"
+        - "*ToWebModel*.cs"
+        - "*DtoMapper*.cs"
+        - "*Repository*.cs"
+        - "*RepositoryHelper*.cs"
+        - "*PersistenceHelper*.cs"
+        - "*Query*.cs"
+    pattern-either:
+      # Pattern 1: amount from a request-shaped source straight into a new
+      # transaction/charge/payment object.
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  new $T { ..., Amount = $SRC.Amount, ... }
+              - pattern: |
+                  new $T { ..., Amount = $SRC.amount, ... }
+              - pattern: |
+                  new $T { Amount = $SRC.Amount, ... }
+          - metavariable-regex:
+              metavariable: $SRC
+              # Source variable must look like a request / command / DTO,
+              # not an internal result / record.
+              regex: '(?i)^(request|req|model|command|cmd|input|payload|webmodel|dto|body|form)$'
+      # Pattern 2: directly calling a charge service with request.Amount.
+      - patterns:
+          - pattern-either:
+              - pattern: $SVC.Charge($SRC.Amount, ...)
+              - pattern: $SVC.ChargeAsync($SRC.Amount, ...)
+              - pattern: await $SVC.ChargeAsync($SRC.Amount, ...)
+              - pattern: $SVC.ProcessPayment($SRC.Amount, ...)
+              - pattern: $SVC.ProcessPaymentAsync($SRC.Amount, ...)
+              - pattern: await $SVC.ProcessPaymentAsync($SRC.Amount, ...)
+          - metavariable-regex:
+              metavariable: $SRC
+              regex: '(?i)^(request|req|model|command|cmd|input|payload|webmodel|dto|body|form)$'

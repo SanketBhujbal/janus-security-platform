@@ -1,0 +1,34 @@
+rules:
+  - id: payments.java.cors-allow-all-origins
+    languages: [java]
+    severity: ERROR
+    message: >
+      CORS configured to allow all origins on a payment or account API.
+      Any website can make cross-origin requests to your payment endpoints on
+      behalf of authenticated users, enabling cross-site payment initiation.
+      Restrict to specific frontend domains and never combine a wildcard origin
+      with allowCredentials(true).
+    metadata:
+      category: payments
+      cwe: ["CWE-942: Permissive Cross-domain Policy with Untrusted Domains"]
+      owasp: ["A05:2021 Security Misconfiguration"]
+      pci: ["6.5.9"]
+    pattern-either:
+      - pattern: $RESP.setHeader("Access-Control-Allow-Origin", "*")
+      - pattern: $RESP.addHeader("Access-Control-Allow-Origin", "*")
+      - pattern: $CORS.allowedOrigins("*")
+      - pattern: $CORS.allowedOriginPatterns("*")
+
+  - id: payments.java.cors-credentials-with-wildcard
+    languages: [java]
+    severity: ERROR
+    message: >
+      CORS allowCredentials(true) — ensure this is not combined with
+      allowedOrigins("*"). Browsers reject the combination, but some
+      frameworks silently downgrade it. Always restrict to explicit
+      payment frontend domains when credentials are allowed.
+    metadata:
+      category: payments
+      cwe: ["CWE-942: Permissive Cross-domain Policy with Untrusted Domains"]
+      owasp: ["A05:2021 Security Misconfiguration"]
+    pattern: $CORS.allowCredentials(true)

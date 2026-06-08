@@ -1,0 +1,119 @@
+pipeline {
+    agent { label 'docker' }
+
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        timestamps()
+        ansiColor('xterm')
+    }
+
+    environment {
+        ANTHROPIC_API_KEY = credentials('anthropic-api-key')
+        ANTHROPIC_MODEL   = 'claude-sonnet-4-6'
+        GITHUB_TOKEN      = credentials('github-token')
+        GITHUB_REPO       = "${env.GITHUB_REPO ?: 'aciworldwide/REPLACE-ME'}"
+        SANDBOX_NETWORK   = 'security-orchestrator-sandbox'
+        SANDBOX_IMAGE     = 'security-orchestrator/attacker:latest'
+        TARGET_URL        = 'http://target-api:8080'
+        SO_ROOT           = 'security_orchestrator'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps { checkout scm }
+        }
+
+        stage('Build') {
+            steps {
+                sh '''
+                    set -eux
+                    python3 -m venv .venv
+                    . .venv/bin/activate
+                    pip install --quiet --upgrade pip
+                    pip install --quiet -r ${SO_ROOT}/requirements.txt
+
+                    docker network inspect ${SANDBOX_NETWORK} >/dev/null 2>&1 \
+                        || docker network create ${SANDBOX_NETWORK}
+
+                    docker compose -f ${SO_ROOT}/sandbox/docker-compose.yml \
+                        --profile build-only build attacker-image-builder
+                    docker compose -f ${SO_ROOT}/sandbox/docker-compose.yml up -d --build target-api
+
+                    for i in $(seq 1 30); do
+                        if curl -sf http://localhost:8080/health >/dev/null; then
+                            echo "target-api healthy"; break
+                        fi
+                        sleep 2
+                    done
+                '''
+            }
+        }
+
+        stage('Security Scan') {
+            steps {
+                sh '''
+                    set -eux
+                    . .venv/bin/activate
+                    semgrep --json --quiet \
+                        --config ${SO_ROOT}/orchestrator/rules/payments \
+                        . > semgrep-report.json || true
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'semgrep-report.json', allowEmptyArchive: true
+                }
+            }
+        }
+
+        stage('Attack + Auto-Fix + Validate') {
+            steps {
+                sh '''
+                    set -eux
+                    . .venv/bin/activate
+                    python -m orchestrator.orchestrator \
+                        --repo . \
+                        --rules ${SO_ROOT}/orchestrator/rules/payments \
+                        --target ${TARGET_URL} \
+                        --min-severity medium \
+                        --compose-file ${SO_ROOT}/sandbox/docker-compose.yml \
+                        --compose-service target-api \
+                        --health-url http://localhost:8080/health
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: '.security_workdir/report.json', allowEmptyArchive: true
+                }
+            }
+        }
+
+        stage('Create Pull Request') {
+            when {
+                allOf {
+                    expression { fileExists('.security_workdir/report.json') }
+                    expression { env.GITHUB_REPO && !env.GITHUB_REPO.contains('REPLACE-ME') }
+                }
+            }
+            steps {
+                sh '''
+                    set -eux
+                    . .venv/bin/activate
+                    python -m orchestrator.git_ops.github_pr \
+                        --repo . \
+                        --report .security_workdir/report.json \
+                        --slug ${GITHUB_REPO} \
+                        --base ${CHANGE_TARGET:-main}
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            sh '''
+                docker compose -f ${SO_ROOT}/sandbox/docker-compose.yml down --remove-orphans || true
+            '''
+        }
+    }
+}

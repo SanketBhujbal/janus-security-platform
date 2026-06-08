@@ -1,0 +1,34 @@
+rules:
+  - id: efficiency.regex-recompile-in-loop
+    languages: [python]
+    severity: WARNING
+    message: >
+      Compiling a regex on every iteration is wasteful — compile once outside
+      the loop with re.compile() and reuse the pattern object inside. Saves
+      30-90% on regex-heavy hot paths.
+    metadata:
+      category: efficiency
+      cost_class: hot-path
+      complexity_before: "O(n) compiles"
+      complexity_after: "1 compile"
+    pattern-either:
+      - pattern: |
+          for $X in $C:
+              ...
+              re.compile($PAT)
+              ...
+      - pattern: |
+          for $X in $C:
+              ...
+              re.search($PAT, $S)
+              ...
+      - pattern: |
+          for $X in $C:
+              ...
+              re.match($PAT, $S)
+              ...
+      - pattern: |
+          for $X in $C:
+              ...
+              re.findall($PAT, $S)
+              ...

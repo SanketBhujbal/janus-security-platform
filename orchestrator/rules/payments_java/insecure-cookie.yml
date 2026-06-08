@@ -1,0 +1,37 @@
+rules:
+  - id: payments.java.cookie-missing-secure-flag
+    languages: [java]
+    severity: ERROR
+    message: >
+      Cookie created without calling setSecure(true). Without the Secure flag the
+      browser sends the cookie over plain HTTP, allowing session token interception.
+      Always call cookie.setSecure(true) and cookie.setHttpOnly(true) on any cookie
+      that carries a session or payment context (PCI DSS 6.5.10).
+    metadata:
+      category: payments
+      cwe: ["CWE-614: Sensitive Cookie in HTTPS Session Without 'Secure' Attribute"]
+      owasp: ["A05:2021 Security Misconfiguration"]
+      pci: ["6.5.10", "8.6.1"]
+    patterns:
+      - pattern: new Cookie($NAME, $VAL)
+      - pattern-not-inside: |
+          Cookie $C = new Cookie($NAME, $VAL);
+          $C.setSecure(true);
+
+  - id: payments.java.cookie-missing-httponly-flag
+    languages: [java]
+    severity: ERROR
+    message: >
+      Cookie created without calling setHttpOnly(true). Without HttpOnly the
+      cookie is readable by JavaScript, enabling session theft via XSS. Always
+      set both HttpOnly and Secure on payment session cookies.
+    metadata:
+      category: payments
+      cwe: ["CWE-1004: Sensitive Cookie Without 'HttpOnly' Flag"]
+      owasp: ["A05:2021 Security Misconfiguration"]
+      pci: ["6.5.10"]
+    patterns:
+      - pattern: new Cookie($NAME, $VAL)
+      - pattern-not-inside: |
+          Cookie $C = new Cookie($NAME, $VAL);
+          $C.setHttpOnly(true);

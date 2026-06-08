@@ -1,0 +1,32 @@
+rules:
+  - id: payments.java.broken-authz-idor
+    languages: [java]
+    severity: ERROR
+    message: >
+      Payment or account record fetched by caller-supplied id with no ownership
+      check. Classic IDOR -- User A can read User B's payment by changing the
+      request parameter. Filter by both id AND the authenticated user's id
+      (findByIdAndUserId) or assert ownership explicitly before returning.
+    metadata:
+      category: payments
+      cwe: ["CWE-639: Authorization Bypass Through User-Controlled Key"]
+      owasp: ["A01:2021 Broken Access Control"]
+      pci: ["7.1"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $REPO.findById($ID)
+              - pattern: $REPO.getById($ID)
+              - pattern: $REPO.getReferenceById($ID)
+              - pattern: $REPO.findOne($ID)
+          - metavariable-regex:
+              metavariable: $REPO
+              regex: '(?i)(payment|transaction|account|card|order)(Repo|Repository|Service|Dao)'
+          - pattern-not-regex: '(?i)(userId|user_id|ownerId|owner_id|customerId|customer_id|principal|authentication)'
+      - patterns:
+          - pattern: $EM.find($CLASS.class, $ID)
+          - metavariable-regex:
+              metavariable: $CLASS
+              regex: '(?i)(Payment|Transaction|Account|Card|Order)'
+          - pattern-not-inside: |
+              if ($OWNERSHIP) { ... }

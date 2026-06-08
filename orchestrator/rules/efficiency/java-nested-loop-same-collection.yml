@@ -1,0 +1,21 @@
+rules:
+  - id: efficiency.java.nested-loop-same-collection
+    languages: [java]
+    severity: WARNING
+    message: >
+      Nested for-each over the same collection is O(n^2). For self-join /
+      duplicate-detection, group by the join attribute into a HashMap
+      (`Map<K, List<T>>`) or use streams with `Collectors.groupingBy`.
+    metadata:
+      category: efficiency
+      cost_class: hot-path
+      complexity_before: "O(n^2)"
+      complexity_after: "O(n)"
+    pattern: |
+      for ($T1 $X : $COLL) {
+          ...
+          for ($T2 $Y : $COLL) {
+              ...
+          }
+          ...
+      }

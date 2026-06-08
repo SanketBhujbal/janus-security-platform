@@ -1,0 +1,55 @@
+rules:
+  - id: payments.dotnet.xxe-xmldocument
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      XmlDocument loaded without setting XmlResolver = null. The default resolver
+      processes external entity references, enabling XXE attacks in payment XML
+      parsing (SOAP callbacks, 3DS, ISO 8583 XML). Set doc.XmlResolver = null
+      before calling Load() or LoadXml().
+    metadata:
+      category: payments
+      cwe: ["CWE-611: Improper Restriction of XML External Entity Reference"]
+      owasp: ["A05:2021 Security Misconfiguration"]
+      pci: ["6.5.1"]
+    patterns:
+      - pattern: |
+          XmlDocument $DOC = new XmlDocument();
+          ...
+          $DOC.Load(...);
+      - pattern-not: |
+          XmlDocument $DOC = new XmlDocument();
+          ...
+          $DOC.XmlResolver = null;
+          ...
+          $DOC.Load(...);
+
+  - id: payments.dotnet.xxe-xmltextreader
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      XmlTextReader used directly without disabling DTD processing. XmlTextReader
+      expands external entities by default in older .NET. Use XmlReader.Create()
+      with XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit,
+      XmlResolver = null } instead.
+    metadata:
+      category: payments
+      cwe: ["CWE-611: Improper Restriction of XML External Entity Reference"]
+      owasp: ["A05:2021 Security Misconfiguration"]
+    pattern: new XmlTextReader(...)
+
+  - id: payments.dotnet.xxe-xmlreader-no-settings
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      XmlReader.Create() called without XmlReaderSettings that prohibit DTD
+      processing. Pass new XmlReaderSettings { DtdProcessing =
+      DtdProcessing.Prohibit, XmlResolver = null } as the second argument when
+      parsing any XML from payment gateway callbacks or external sources.
+    metadata:
+      category: payments
+      cwe: ["CWE-611: Improper Restriction of XML External Entity Reference"]
+      owasp: ["A05:2021 Security Misconfiguration"]
+    patterns:
+      - pattern: XmlReader.Create($SOURCE)
+      - pattern-not: XmlReader.Create($SOURCE, ...)

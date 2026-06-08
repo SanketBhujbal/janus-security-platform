@@ -1,0 +1,42 @@
+rules:
+  - id: payments.dotnet.tls-cert-validation-disabled
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      ServerCertificateCustomValidationCallback set to always return true, disabling
+      TLS certificate validation for payment gateway HTTP clients. This allows
+      man-in-the-middle attacks that intercept cardholder data in transit, violating
+      PCI DSS Requirement 4.2.1. Remove the callback or implement proper certificate
+      pinning for payment provider domains.
+    metadata:
+      category: payments
+      cwe: ["CWE-295: Improper Certificate Validation"]
+      owasp: ["A02:2021 Cryptographic Failures"]
+      pci: ["4.2.1", "6.5.4"]
+    pattern-either:
+      - pattern: ServicePointManager.ServerCertificateValidationCallback = (...) => true
+      - pattern: ServicePointManager.ServerCertificateValidationCallback += (...) => true
+      - pattern: |
+          new HttpClientHandler
+          {
+              ServerCertificateCustomValidationCallback = ($MSG, $CERT, $CHAIN, $ERR) => true
+          }
+      - pattern: HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+
+  - id: payments.dotnet.tls-old-protocol
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      ServicePointManager.SecurityProtocol set to Ssl3, Tls, or Tls11.
+      All three are deprecated and banned under PCI DSS 4.0.
+      Use SecurityProtocolType.Tls13 | SecurityProtocolType.Tls12 for all
+      connections to payment gateways and APIs.
+    metadata:
+      category: payments
+      cwe: ["CWE-326: Inadequate Encryption Strength"]
+      owasp: ["A02:2021 Cryptographic Failures"]
+      pci: ["4.2.1"]
+    pattern-either:
+      - pattern: ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3
+      - pattern: ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls
+      - pattern: ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls11

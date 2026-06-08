@@ -1,0 +1,24 @@
+rules:
+  - id: payments.weak-payment-validation
+    languages: [python]
+    severity: WARNING
+    message: >
+      Monetary field consumed from the request without explicit type, range,
+      currency, or sign validation. Negative, zero, or oversized amounts will
+      pass. Use Decimal with explicit bounds and currency whitelisting.
+    metadata:
+      category: payments
+      cwe: ["CWE-20: Improper Input Validation"]
+      pci: ["6.5.1"]
+      owasp: ["A04:2021 Insecure Design"]
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $AMT = request.$M.get("amount")
+              ...
+              $CHARGE(..., amount=$AMT, ...)
+          - pattern: |
+              $AMT = $BODY.get("amount")
+              ...
+              $CHARGE(..., amount=$AMT, ...)
+      - pattern-not-regex: '(?i)Decimal\(|isinstance|validate|positive|>=\s*0|>\s*0|min_amount|max_amount|abs\('

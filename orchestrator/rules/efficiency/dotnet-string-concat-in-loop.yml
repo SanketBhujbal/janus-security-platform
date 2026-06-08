@@ -1,0 +1,29 @@
+rules:
+  - id: efficiency.dotnet.string-concat-in-loop
+    languages: [csharp]
+    severity: WARNING
+    message: >
+      `string += value` in a loop allocates a brand-new string every iteration
+      because string is immutable in .NET (O(n^2) memory churn). Use
+      `System.Text.StringBuilder` and call `.Append(...)`; convert to string
+      once via `.ToString()` at the end.
+    metadata:
+      category: efficiency
+      cost_class: hot-path
+      complexity_before: "O(n^2) memory"
+      complexity_after: "O(n)"
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              foreach (var $X in $C) {
+                  ...
+              }
+          - pattern-inside: |
+              foreach ($T $X in $C) {
+                  ...
+              }
+          - pattern-inside: |
+              for ($INIT; $COND; $STEP) {
+                  ...
+              }
+      - pattern: $S += $V

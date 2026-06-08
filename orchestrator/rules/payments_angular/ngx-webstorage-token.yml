@@ -1,0 +1,47 @@
+rules:
+  - id: payments.angular.ngx-webstorage-token
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: >
+      Auth token / session credential persisted via ngx-webstorage
+      (`SessionStorageService.store(...)` / `LocalStorageService.store(...)`).
+      ngx-webstorage is just a typed wrapper around browser localStorage /
+      sessionStorage -- any XSS on the page reads the value. For payments
+      back-office UIs, use an httpOnly Secure SameSite=Strict cookie issued
+      by the backend so JS cannot read the token.
+    metadata:
+      category: payments
+      cwe: ["CWE-922: Insecure Storage of Sensitive Information"]
+      owasp: ["A07:2021 Identification and Authentication Failures"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $S.store($K, $V)
+              - pattern: $S.set($K, $V)
+              - pattern: $S.setItem($K, $V)
+          - metavariable-pattern:
+              metavariable: $K
+              language: regex
+              pattern: '(?i)(AUTHENTICATION_KEY|AUTH_TOKEN|ACCESS_TOKEN|ID_TOKEN|JWT|SESSION_TOKEN|BEARER|REFRESH_TOKEN|SESSION_ID|csrf|xsrf)'
+
+  - id: payments.angular.ngx-webstorage-profile-data
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: >
+      Profile / account / payment data written to ngx-webstorage. Any XSS
+      can read PROFILE_ID, ACCOUNT, SITE_ID and use them to perform actions
+      on behalf of the user via the API. Server-side session is safer for
+      payments flows.
+    metadata:
+      category: payments
+      cwe: ["CWE-922: Insecure Storage of Sensitive Information"]
+      owasp: ["A04:2021 Insecure Design"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $S.store($K, $V)
+              - pattern: $S.set($K, $V)
+          - metavariable-pattern:
+              metavariable: $K
+              language: regex
+              pattern: '(?i)(PROFILE_ID|ACCOUNT|SITE_ID|MERCHANT_ID|CUSTOMER_ID|USER_ID|PAYMENT_ID|TRANSACTION_ID)'

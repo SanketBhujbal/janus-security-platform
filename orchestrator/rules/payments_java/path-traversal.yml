@@ -1,0 +1,39 @@
+rules:
+  - id: payments.java.path-traversal-file
+    languages: [java]
+    severity: ERROR
+    message: >
+      File path constructed from caller-supplied data. Payment applications that
+      serve invoices, receipts, or statements by filename are exploitable via
+      path traversal — an attacker supplies "../../etc/passwd" to read arbitrary
+      files. Resolve the path, then assert it starts with the expected base
+      directory before opening: resolvedPath.startsWith(baseDir.toRealPath()).
+    metadata:
+      category: payments
+      cwe: ["CWE-22: Improper Limitation of a Pathname to a Restricted Directory"]
+      owasp: ["A01:2021 Broken Access Control"]
+      pci: ["6.5.1"]
+    pattern-either:
+      - pattern: new File($BASE, $REQ.$METHOD())
+      - pattern: new File($REQ.$METHOD())
+      - pattern: Paths.get($REQ.$METHOD())
+      - pattern: Paths.get($BASE, $REQ.$METHOD())
+      - pattern: Path.of($REQ.$METHOD())
+      - pattern: new FileInputStream($REQ.$METHOD())
+      - pattern: new FileReader($REQ.$METHOD())
+
+  - id: payments.java.path-traversal-resource
+    languages: [java]
+    severity: ERROR
+    message: >
+      Resource path built from request data for ClassLoader or ServletContext
+      resource resolution. Attackers can escape the classpath or web root with
+      "../" sequences. Allowlist valid resource names or strip path separators
+      before resolving.
+    metadata:
+      category: payments
+      cwe: ["CWE-22: Improper Limitation of a Pathname to a Restricted Directory"]
+      owasp: ["A01:2021 Broken Access Control"]
+    pattern-either:
+      - pattern: $CTX.getResourceAsStream($REQ.$METHOD())
+      - pattern: getClass().getClassLoader().getResourceAsStream($REQ.$METHOD())

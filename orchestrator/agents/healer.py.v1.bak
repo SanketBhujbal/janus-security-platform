@@ -1,0 +1,125 @@
+from __future__ import annotations
+
+import ast
+import logging
+import textwrap
+
+from ..models.vulnerability import (
+    CodeLocation,
+    FindingStatus,
+    Patch,
+    Vulnerability,
+)
+from .base import Agent, AgentContext
+
+
+log = logging.getLogger("security_brain.healer")
+
+
+HEALER_SYSTEM = """You are a senior secure-coding engineer. Given a vulnerability and the surrounding \
+source code, produce a minimal, correct patch that eliminates the vulnerability while preserving \
+behavior. Follow OWASP Top 10 and PCI DSS guidance for payments code.
+
+Constraints:
+- Do NOT add new third-party dependencies unless absolutely required.
+- Prefer: parameterized queries, server-side validation, idempotency keys (Idempotency-Key header + \
+  persistent dedup table), strict typing on monetary values, structured logging with explicit masking \
+  of PAN/CVV/track data, and server-side reconciliation against trusted order/price records.
+- Do NOT modify unrelated code.
+- The "patched_code" you return REPLACES exactly the source lines start_line..end_line provided. \
+  Keep indentation consistent with the original snippet.
+
+Respond with STRICT JSON only (no prose, no fences):
+{
+  "patched_code": "<full replacement for the vulnerable snippet>",
+  "explanation": "<2-4 sentences on why this fixes it>",
+  "references": ["OWASP A03:2021", "PCI DSS 6.5.1"]
+}
+"""
+
+
+class HealerAgent(Agent):
+    name = "healer"
+
+    def run(self, vuln: Vulnerability, ctx: AgentContext) -> Vulnerability:
+        if vuln.exploit is None or not vuln.exploit.succeeded:
+            vuln.notes.append("healer: skipped (no confirmed exploit)")
+            return vuln
+
+        original = self._read_snippet(vuln.location)
+        spec = self.llm.complete_json(
+            HEALER_SYSTEM,
+            textwrap.dedent(
+                f"""
+                Vulnerability: {vuln.category.value} ({vuln.severity.value})
+                Title: {vuln.title}
+                Description: {vuln.description}
+                Location: {vuln.location.as_pointer()} (lines {vuln.location.start_line}..{vuln.location.end_line})
+                Successful exploit payload: {vuln.exploit.payload}
+                Exploit evidence: {vuln.exploit.actual_signal}
+
+                Original code:
+                ---
+                {original}
+                ---
+                """
+            ).strip(),
+        )
+
+        patch = Patch(
+            location=vuln.location,
+            original_code=original,
+            patched_code=spec["patched_code"],
+            explanation=spec.get("explanation", ""),
+            references=spec.get("references", []),
+        )
+        if not self._apply_patch_safely(patch):
+            vuln.status = FindingStatus.FAILED
+            vuln.notes.append("healer: patch rejected (syntax check failed); file unchanged")
+            return vuln
+        vuln.patch = patch
+        vuln.status = FindingStatus.PATCHED
+        vuln.notes.append("healer: patch applied")
+        return vuln
+
+    def _read_snippet(self, loc: CodeLocation) -> str:
+        lines = loc.file.read_text(encoding="utf-8").splitlines(keepends=True)
+        return "".join(lines[loc.start_line - 1 : loc.end_line])
+
+    def _apply_patch_safely(self, patch: Patch) -> bool:
+        # Atomic patch apply with rollback on syntax failure. Trust no LLM
+        # output: a bad response can corrupt source. We build the candidate
+        # file in memory, validate it (Python AST for .py files), then write
+        # in a single call. On any check failure, the original file stays.
+        target = patch.location.file
+        original_bytes = target.read_bytes()
+        lines = original_bytes.decode("utf-8").splitlines(keepends=True)
+        before = lines[: patch.location.start_line - 1]
+        after = lines[patch.location.end_line :]
+        new_body = patch.patched_code
+        if not new_body.endswith("\n"):
+            new_body += "\n"
+        candidate = "".join(before) + new_body + "".join(after)
+
+        if not self._is_syntactically_valid(target.name, candidate):
+            log.warning(
+                "healer: rejected patch for %s — candidate fails syntax check",
+                target,
+            )
+            return False
+        target.write_text(candidate, encoding="utf-8")
+        return True
+
+    @staticmethod
+    def _is_syntactically_valid(filename: str, source: str) -> bool:
+        # Whitelist of languages we can syntax-check in-process. For everything
+        # else (Java, JS, YAML, etc.) we accept the patch — the Validator's
+        # tests + exploit replay are still the safety net of last resort.
+        if filename.endswith(".py"):
+            try:
+                ast.parse(source, filename=filename)
+                return True
+            except SyntaxError as e:
+                log.warning("healer: python syntax error: %s", e)
+                return False
+        return True

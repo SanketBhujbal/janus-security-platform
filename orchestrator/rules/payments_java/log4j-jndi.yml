@@ -1,0 +1,31 @@
+rules:
+  - id: payments.java.log4j-jndi-injection
+    languages: [java]
+    severity: ERROR
+    message: >
+      User-controlled data passed directly to a Log4j logger. Log4Shell
+      (CVE-2021-44228) — any string containing "${jndi:ldap://...}" triggers
+      remote code execution via JNDI lookup in Log4j 2.0-2.14.1. Payment
+      applications are high-value targets. Upgrade to Log4j 2.17.1+ and ensure
+      user input is never logged unescaped. Use log.info("msg: {}", value)
+      with a literal format string; never use string concatenation in log calls.
+    metadata:
+      category: payments
+      cwe: ["CWE-20: Improper Input Validation", "CWE-917: Improper Neutralization of Special Elements used in an Expression Language Statement"]
+      owasp: ["A03:2021 Injection"]
+      references: ["CVE-2021-44228", "CVE-2021-45046"]
+      pci: ["6.3.3"]
+    pattern-either:
+      - pattern: $LOG.info($REQ.getParameter($KEY))
+      - pattern: $LOG.warn($REQ.getParameter($KEY))
+      - pattern: $LOG.error($REQ.getParameter($KEY))
+      - pattern: $LOG.debug($REQ.getParameter($KEY))
+      - pattern: $LOG.trace($REQ.getParameter($KEY))
+      - pattern: $LOG.info($REQ.getHeader($KEY))
+      - pattern: $LOG.warn($REQ.getHeader($KEY))
+      - pattern: $LOG.error($REQ.getHeader($KEY))
+      - pattern: $LOG.debug($REQ.getHeader($KEY))
+      - pattern: $LOG.info("...", ..., $REQ.getParameter($KEY), ...)
+      - pattern: $LOG.error("...", ..., $REQ.getParameter($KEY), ...)
+      - pattern: $LOG.info("...", ..., $REQ.getHeader($KEY), ...)
+      - pattern: $LOG.error("...", ..., $REQ.getHeader($KEY), ...)

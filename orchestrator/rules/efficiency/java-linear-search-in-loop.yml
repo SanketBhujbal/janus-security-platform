@@ -1,0 +1,20 @@
+rules:
+  - id: efficiency.java.linear-search-in-loop
+    languages: [java]
+    severity: WARNING
+    message: >
+      `List.contains` inside a for-each is O(n) per probe -> O(n^2) overall.
+      Build a HashSet once before the loop and check membership in O(1):
+        Set<T> set = new HashSet<>(theList);
+        for (T x : outer) if (set.contains(x)) { ... }
+    metadata:
+      category: efficiency
+      cost_class: hot-path
+      complexity_before: "O(n^2)"
+      complexity_after: "O(n)"
+    patterns:
+      - pattern-inside: |
+          for ($T $X : $OUTER) {
+              ...
+          }
+      - pattern: $LIST.contains($Y)

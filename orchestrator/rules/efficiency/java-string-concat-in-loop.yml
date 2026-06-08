@@ -1,0 +1,46 @@
+rules:
+  - id: efficiency.java.string-concat-in-loop
+    languages: [java]
+    severity: WARNING
+    message: >
+      `String += value` in a loop creates a new String object each iteration
+      because String is immutable. Use `StringBuilder` instead; convert to
+      String with `.toString()` at the end.
+    metadata:
+      category: efficiency
+      cost_class: hot-path
+      complexity_before: "O(n^2) memory"
+      complexity_after: "O(n)"
+    pattern-either:
+      - pattern: |
+          String $S = "";
+          ...
+          for ($T $X : $C) {
+              ...
+              $S += $V;
+              ...
+          }
+      - pattern: |
+          String $S = "";
+          ...
+          for ($INIT; $COND; $STEP) {
+              ...
+              $S += $V;
+              ...
+          }
+      - pattern: |
+          String $S = "";
+          ...
+          while ($COND) {
+              ...
+              $S += $V;
+              ...
+          }
+      - pattern: |
+          String $S = $X;
+          ...
+          for ($T $X2 : $C) {
+              ...
+              $S = $S + $V;
+              ...
+          }

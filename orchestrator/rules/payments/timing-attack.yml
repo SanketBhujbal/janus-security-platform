@@ -1,0 +1,44 @@
+rules:
+  - id: payments.python.timing-attack-string-compare
+    languages: [python]
+    severity: ERROR
+    message: >
+      Payment token, HMAC signature, or API key compared with == instead of
+      hmac.compare_digest(). The == operator short-circuits on the first differing
+      byte, leaking the comparison result via timing side-channel. An attacker
+      making many requests can byte-by-byte guess webhook signatures, payment
+      tokens, or idempotency keys. Use hmac.compare_digest(a, b) for all
+      security-sensitive comparisons.
+    metadata:
+      category: payments
+      cwe: ["CWE-208: Observable Timing Discrepancy"]
+      owasp: ["A02:2021 Cryptographic Failures"]
+      pci: ["6.5.3"]
+    pattern-either:
+      - pattern: $TOKEN == request.$METHOD()
+      - pattern: request.$METHOD() == $TOKEN
+      - pattern: $SIG == request.headers[$KEY]
+      - pattern: request.headers[$KEY] == $SIG
+      - pattern: $TOKEN == request.args[$KEY]
+      - pattern: request.args[$KEY] == $TOKEN
+      - pattern: $TOKEN == request.json[$KEY]
+      - pattern: request.json[$KEY] == $TOKEN
+
+  - id: payments.python.timing-attack-hmac-verify
+    languages: [python]
+    severity: ERROR
+    message: >
+      Webhook signature verified by string equality instead of hmac.compare_digest().
+      Payment provider webhook signatures (Stripe, PayPal, Adyen) must be verified
+      using constant-time comparison to prevent timing attacks that allow forging
+      events. Use: hmac.compare_digest(expected_sig.encode(), received_sig.encode()).
+    metadata:
+      category: payments
+      cwe: ["CWE-208: Observable Timing Discrepancy"]
+      owasp: ["A02:2021 Cryptographic Failures"]
+      pci: ["6.5.3"]
+    patterns:
+      - pattern: $COMPUTED == $RECEIVED
+      - pattern-inside: |
+          $COMPUTED = hmac.new(...).hexdigest()
+          ...

@@ -1,0 +1,37 @@
+rules:
+  - id: payments.dotnet.path-traversal-file-read
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      File.ReadAll*/File.Open*/FileStream constructed with a path from request
+      data. Payment invoice/receipt file serving is a common path traversal
+      target. Call Path.GetFullPath() on the result and verify it starts with
+      the expected base directory before opening any file.
+    metadata:
+      category: payments
+      cwe: ["CWE-22: Improper Limitation of a Pathname to a Restricted Directory"]
+      owasp: ["A01:2021 Broken Access Control"]
+      pci: ["6.5.1"]
+    pattern-either:
+      - pattern: File.ReadAllBytes(Request.$METHOD())
+      - pattern: File.ReadAllText(Request.$METHOD())
+      - pattern: File.ReadAllLines(Request.$METHOD())
+      - pattern: File.OpenRead(Request.$METHOD())
+      - pattern: new FileStream(Request.$METHOD(), ...)
+      - pattern: File.ReadAllBytes(Path.Combine($BASE, Request.$METHOD()))
+      - pattern: File.ReadAllText(Path.Combine($BASE, Request.$METHOD()))
+
+  - id: payments.dotnet.path-traversal-path-combine
+    languages: [csharp]
+    severity: WARNING
+    message: >
+      Path.Combine() used with request-controlled input as the second argument.
+      Path.Combine returns the second argument unchanged if it is an absolute path,
+      silently bypassing any base directory prefix. Always call
+      Path.GetFullPath() on the result and verify it starts with the intended
+      base directory.
+    metadata:
+      category: payments
+      cwe: ["CWE-22: Improper Limitation of a Pathname to a Restricted Directory"]
+      owasp: ["A01:2021 Broken Access Control"]
+    pattern: Path.Combine($BASE, Request.$METHOD())

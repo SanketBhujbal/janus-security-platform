@@ -1,0 +1,29 @@
+rules:
+  - id: payments.angular.console-log-card-data
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >
+      console.log / console.error contains card data (PAN, CVV/CVC, card
+      number). Browser dev-tool history is shared via screen-share, support
+      tickets, and bug reports. Strip all card-data logging in the frontend.
+    metadata:
+      category: payments
+      cwe: ["CWE-532: Insertion of Sensitive Information into Log File"]
+      pci: ["3.2"]
+      owasp: ["A09:2021 Security Logging and Monitoring Failures"]
+    pattern-either:
+      - pattern: console.log(..., $X.pan, ...)
+      - pattern: console.log(..., $X.cvv, ...)
+      - pattern: console.log(..., $X.cvc, ...)
+      - pattern: console.log(..., $X.cardNumber, ...)
+      - pattern: console.log(..., $X.cardNum, ...)
+      - pattern: console.log(..., $X.primaryAccountNumber, ...)
+      - pattern: console.error(..., $X.pan, ...)
+      - pattern: console.error(..., $X.cvv, ...)
+      - pattern: console.error(..., $X.cardNumber, ...)
+      - pattern: console.warn(..., $X.pan, ...)
+      - pattern: console.warn(..., $X.cvv, ...)
+      - pattern: console.info(..., $X.pan, ...)
+      - pattern: console.info(..., $X.cvv, ...)
+      - pattern: console.debug(..., $X.pan, ...)
+      - pattern: console.debug(..., $X.cvv, ...)

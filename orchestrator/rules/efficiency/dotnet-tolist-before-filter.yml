@@ -1,0 +1,20 @@
+rules:
+  - id: efficiency.dotnet.tolist-before-filter
+    languages: [csharp]
+    severity: WARNING
+    message: >
+      `.ToList().Where(...)` materializes the FULL collection into memory
+      before filtering -- wastes allocations and (for EF Core / Dapper) can
+      pull every row from the DB. Reorder to `.Where(...).ToList()` so only
+      matching elements are materialized.
+    metadata:
+      category: efficiency
+      cost_class: hot-path
+      complexity_before: "allocates full collection, then filters"
+      complexity_after: "filters lazily, then allocates only matches"
+    pattern-either:
+      - pattern: $X.ToList().Where($PRED)
+      - pattern: $X.ToArray().Where($PRED)
+      - pattern: $X.ToList().FirstOrDefault($PRED)
+      - pattern: $X.ToList().First($PRED)
+      - pattern: $X.ToList().Single($PRED)

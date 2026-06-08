@@ -1,0 +1,28 @@
+rules:
+  - id: efficiency.dotnet.regex-recompile-in-loop
+    languages: [csharp]
+    severity: WARNING
+    message: >
+      `new Regex(pattern)` (or `Regex.Match` / `Regex.IsMatch` static calls)
+      inside a foreach recompiles the pattern every iteration. Hoist it to a
+      `private static readonly Regex` field with `RegexOptions.Compiled`:
+        private static readonly Regex _pat = new(@"...", RegexOptions.Compiled);
+    metadata:
+      category: efficiency
+      cost_class: hot-path
+      complexity_before: "O(n) compiles"
+      complexity_after: "1 compile"
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              foreach (var $X in $C) {
+                  ...
+              }
+          - pattern-inside: |
+              foreach ($T $X in $C) {
+                  ...
+              }
+      - pattern-either:
+          - pattern: new Regex($PAT)
+          - pattern: Regex.Match($S, $PAT)
+          - pattern: Regex.IsMatch($S, $PAT)

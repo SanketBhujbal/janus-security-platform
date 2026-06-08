@@ -1,0 +1,24 @@
+rules:
+  - id: payments.python.open-redirect
+    languages: [python]
+    severity: ERROR
+    message: >
+      Flask/Django redirect destination taken from request data. Payment return_url
+      and success_url parameters are an open redirect target — attackers craft a
+      URL that passes through your payment domain but sends users to a phishing
+      page. Validate against urllib.parse: only allow known-good hosts or restrict
+      to relative paths using url_has_allowed_host_and_scheme() (Django) or an
+      explicit allowlist.
+    metadata:
+      category: payments
+      cwe: ["CWE-601: URL Redirection to Untrusted Site ('Open Redirect')"]
+      owasp: ["A01:2021 Broken Access Control"]
+      pci: ["6.5.1"]
+    pattern-either:
+      - pattern: redirect(request.args[$KEY])
+      - pattern: redirect(request.form[$KEY])
+      - pattern: redirect(request.json[$KEY])
+      - pattern: redirect(request.$METHOD())
+      - pattern: HttpResponseRedirect(request.GET[$KEY])
+      - pattern: HttpResponseRedirect(request.POST[$KEY])
+      - pattern: HttpResponseRedirect(request.$METHOD())

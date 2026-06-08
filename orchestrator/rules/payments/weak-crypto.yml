@@ -1,0 +1,44 @@
+rules:
+  - id: payments.python.weak-hash-algorithm
+    languages: [python]
+    severity: ERROR
+    message: >
+      hashlib.md5() or hashlib.sha1() used for payment or credential data
+      integrity. Both are cryptographically broken (collision attacks). Under
+      PCI DSS 3.5.1 these must not be used for cardholder data protection.
+      Replace with hashlib.sha256() or hashlib.sha3_256(). For passwords/PINs
+      use bcrypt, scrypt, or PBKDF2.
+    metadata:
+      category: payments
+      cwe: ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      owasp: ["A02:2021 Cryptographic Failures"]
+      pci: ["3.5.1", "6.5.3"]
+    pattern-either:
+      - pattern: hashlib.md5(...)
+      - pattern: hashlib.sha1(...)
+      - pattern: hashlib.new("md5", ...)
+      - pattern: hashlib.new("sha1", ...)
+      - pattern: hashlib.new("md5")
+      - pattern: hashlib.new("sha1")
+
+  - id: payments.python.insecure-random
+    languages: [python]
+    severity: WARNING
+    message: >
+      random module used in a payments codebase. random.random(),
+      random.randint(), etc. are not cryptographically secure and produce
+      predictable values. Use the secrets module (secrets.token_hex(),
+      secrets.token_urlsafe()) or uuid.uuid4() for payment tokens,
+      idempotency keys, and transaction reference numbers.
+    metadata:
+      category: payments
+      cwe: ["CWE-338: Use of Cryptographically Weak Pseudo-Random Number Generator"]
+      owasp: ["A02:2021 Cryptographic Failures"]
+      pci: ["6.5.3"]
+    pattern-either:
+      - pattern: random.random()
+      - pattern: random.randint(...)
+      - pattern: random.choice(...)
+      - pattern: random.randrange(...)
+      - pattern: random.uniform(...)
+      - pattern: random.getrandbits(...)

@@ -1,0 +1,66 @@
+rules:
+  - id: payments.java.weak-hash-algorithm
+    languages: [java]
+    severity: ERROR
+    message: >
+      MD5 or SHA-1 used for payment or credential data integrity. Both are
+      cryptographically broken (collision attacks proven in practice) and banned
+      under PCI DSS 3.5.1. Use SHA-256 minimum; prefer SHA-3 or BLAKE2 for
+      new code. Replace MessageDigest.getInstance("MD5") with
+      MessageDigest.getInstance("SHA-256").
+    metadata:
+      category: payments
+      cwe: ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      owasp: ["A02:2021 Cryptographic Failures"]
+      pci: ["3.5.1", "6.5.3"]
+    pattern-either:
+      - pattern: MessageDigest.getInstance("MD5")
+      - pattern: MessageDigest.getInstance("SHA-1")
+      - pattern: MessageDigest.getInstance("SHA1")
+      - pattern: DigestUtils.md5Hex(...)
+      - pattern: DigestUtils.sha1Hex(...)
+      - pattern: DigestUtils.md5(...)
+      - pattern: DigestUtils.getMd5Digest()
+      - pattern: DigestUtils.getSha1Digest()
+
+  - id: payments.java.weak-cipher-algorithm
+    languages: [java]
+    severity: ERROR
+    message: >
+      DES, 3DES (TripleDES), RC4, or Blowfish cipher used for payment data
+      encryption. These algorithms are broken or deprecated under PCI DSS 3.5.1.
+      Migrate to AES-256-GCM: Cipher.getInstance("AES/GCM/NoPadding") with a
+      96-bit IV and 128-bit authentication tag.
+    metadata:
+      category: payments
+      cwe: ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      owasp: ["A02:2021 Cryptographic Failures"]
+      pci: ["3.5.1"]
+    pattern-either:
+      - pattern: Cipher.getInstance("DES")
+      - pattern: Cipher.getInstance("DESede")
+      - pattern: Cipher.getInstance("TripleDES")
+      - pattern: Cipher.getInstance("RC4")
+      - pattern: Cipher.getInstance("ARC4")
+      - pattern: Cipher.getInstance("Blowfish")
+      - pattern: Cipher.getInstance("DES/...")
+      - pattern: Cipher.getInstance("DESede/...")
+      - pattern: Cipher.getInstance("RC4/...")
+
+  - id: payments.java.insecure-random
+    languages: [java]
+    severity: WARNING
+    message: >
+      java.util.Random or Math.random() used. In a payments codebase any
+      non-cryptographic randomness risks predictable transaction IDs, idempotency
+      keys, or session tokens. Use java.security.SecureRandom for random bytes or
+      UUID.randomUUID() for unique identifiers.
+    metadata:
+      category: payments
+      cwe: ["CWE-338: Use of Cryptographically Weak Pseudo-Random Number Generator"]
+      owasp: ["A02:2021 Cryptographic Failures"]
+      pci: ["6.5.3"]
+    pattern-either:
+      - pattern: new Random()
+      - pattern: new java.util.Random()
+      - pattern: Math.random()

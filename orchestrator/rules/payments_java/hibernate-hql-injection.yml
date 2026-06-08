@@ -1,0 +1,22 @@
+rules:
+  - id: payments.java.hibernate-hql-injection
+    languages: [java]
+    severity: ERROR
+    message: >
+      JPA/Hibernate query built by string concatenation. Use named parameters
+      (:param) with setParameter(), or Spring Data @Query with :param bindings.
+      Native query injection in a payments service can exfiltrate the entire
+      card-holder data store.
+    metadata:
+      category: payments
+      cwe: ["CWE-89: SQL Injection"]
+      owasp: ["A03:2021 Injection"]
+      pci: ["6.5.1"]
+    pattern-either:
+      - pattern: $EM.createQuery($A + $B)
+      - pattern: $EM.createNativeQuery($A + $B)
+      - pattern: $SESSION.createQuery($A + $B)
+      - pattern: $SESSION.createSQLQuery($A + $B)
+      - pattern: $SESSION.createNativeQuery($A + $B)
+      - pattern: $EM.createQuery(String.format($FMT, ...))
+      - pattern: $EM.createNativeQuery(String.format($FMT, ...))

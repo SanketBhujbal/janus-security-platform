@@ -1,0 +1,35 @@
+rules:
+  - id: payments.amount-tampering
+    languages: [python, javascript, typescript]
+    severity: ERROR
+    message: >
+      Transaction amount appears to come directly from a client-controlled source
+      without server-side reconciliation against a trusted price/order record.
+      Resolve amount from the authoritative order record server-side; treat any
+      client-submitted amount as advisory only.
+    metadata:
+      category: payments
+      cwe: ["CWE-345: Insufficient Verification of Data Authenticity"]
+      owasp: ["A04:2021 Insecure Design", "A08:2021 Software and Data Integrity Failures"]
+      pci: ["6.5"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  $AMT = request.$M.get("amount")
+                  ...
+                  $CHARGE(..., amount=$AMT, ...)
+              - pattern: |
+                  $AMT = request.json["amount"]
+                  ...
+                  $CHARGE(..., amount=$AMT, ...)
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  const $AMT = req.body.amount;
+                  ...
+                  $CHARGE({ amount: $AMT, ... })
+              - pattern: |
+                  let $AMT = req.body.amount;
+                  ...
+                  $CHARGE({ amount: $AMT, ... })

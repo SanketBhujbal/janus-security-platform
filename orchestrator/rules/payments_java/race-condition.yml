@@ -1,0 +1,36 @@
+rules:
+  - id: payments.java.double-spend-non-atomic-balance
+    languages: [java]
+    severity: ERROR
+    message: >
+      Payment repository findById() used without a pessimistic or optimistic lock.
+      Concurrent requests can both read a sufficient balance and both debit it —
+      a classic double-spend race condition. Annotate the query method with
+      @Lock(LockModeType.PESSIMISTIC_WRITE) or add @Version to the entity,
+      and wrap the read-modify-write in @Transactional.
+    metadata:
+      category: payments
+      cwe: ["CWE-362: Concurrent Execution using Shared Resource with Improper Synchronization"]
+      owasp: ["A04:2021 Insecure Design"]
+      pci: ["6.5.1"]
+    pattern-either:
+      - pattern: $REPO.findById($ID)
+      - pattern: $REPO.getById($ID)
+      - pattern: $REPO.getReferenceById($ID)
+
+  - id: payments.java.missing-transactional-on-payment
+    languages: [java]
+    severity: WARNING
+    message: >
+      Multiple repository save() calls outside an @Transactional boundary. If the
+      second save fails the first is committed, leaving the payment in a partial
+      state (charged but not recorded, or recorded but not processed). Annotate
+      the service method with @Transactional so all-or-nothing semantics are
+      enforced at the database level.
+    metadata:
+      category: payments
+      cwe: ["CWE-362: Concurrent Execution using Shared Resource with Improper Synchronization"]
+      owasp: ["A04:2021 Insecure Design"]
+    pattern-either:
+      - pattern: $REPO.save($X)
+      - pattern: $REPO.saveAndFlush($X)

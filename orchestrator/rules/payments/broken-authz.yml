@@ -1,0 +1,28 @@
+rules:
+  - id: payments.broken-authz
+    languages: [python]
+    severity: ERROR
+    message: >
+      Endpoint takes a resource ID from the URL path but does not verify the
+      caller is authorized for that ID. Classic IDOR / BOLA. Always cross-check
+      the resource owner against the authenticated principal server-side.
+    metadata:
+      category: payments
+      cwe:
+        - "CWE-285: Improper Authorization"
+        - "CWE-639: Authorization Bypass Through User-Controlled Key"
+      owasp: ["A01:2021 Broken Access Control"]
+    patterns:
+      - pattern-either:
+          - pattern: |
+              @$APP.get($URL)
+              def $F(..., $ID, ...):
+                  ...
+          - pattern: |
+              @$APP.route($URL, ...)
+              def $F(..., $ID, ...):
+                  ...
+      - metavariable-regex:
+          metavariable: $URL
+          regex: '<\w*_?id>|<int:\w*_?id>|<uuid:\w*_?id>'
+      - pattern-not-regex: '(?i)current_user|authori[sz]e|permission|owns?|user_id\s*==|\.user_id|check_access'

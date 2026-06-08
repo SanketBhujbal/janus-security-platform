@@ -1,0 +1,53 @@
+rules:
+  - id: payments.dotnet.binaryformatter-deserialization
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      BinaryFormatter.Deserialize() used. BinaryFormatter is banned by Microsoft
+      (removed in .NET 9, disabled by default in .NET 5-8) because it enables
+      arbitrary remote code execution via gadget chains. Replace with
+      System.Text.Json.JsonSerializer or Google.Protobuf for payment message
+      deserialization. See SYSLIB0011.
+    metadata:
+      category: payments
+      cwe: ["CWE-502: Deserialization of Untrusted Data"]
+      owasp: ["A08:2021 Software and Data Integrity Failures"]
+      pci: ["6.5.8"]
+    patterns:
+      - pattern: $BF.Deserialize(...)
+      - pattern-inside: |
+          BinaryFormatter $BF = new BinaryFormatter();
+          ...
+
+  - id: payments.dotnet.json-typehandling-all
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      Newtonsoft.Json TypeNameHandling set to All, Objects, or Auto. This lets
+      the JSON payload specify an arbitrary .NET type by name, enabling gadget-chain
+      attacks. Never use TypeNameHandling.All in payment APIs that accept external
+      JSON. Use System.Text.Json (which does not support this feature) or restrict
+      to a SerializationBinder allowlist.
+    metadata:
+      category: payments
+      cwe: ["CWE-502: Deserialization of Untrusted Data"]
+      owasp: ["A08:2021 Software and Data Integrity Failures"]
+    pattern-either:
+      - pattern: TypeNameHandling.All
+      - pattern: TypeNameHandling.Objects
+      - pattern: TypeNameHandling.Auto
+
+  - id: payments.dotnet.losformatter-deserialization
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      LosFormatter or ObjectStateFormatter used for deserialization. Both rely on
+      BinaryFormatter internally and carry the same gadget-chain RCE risk. Use
+      System.Text.Json for payment state serialization.
+    metadata:
+      category: payments
+      cwe: ["CWE-502: Deserialization of Untrusted Data"]
+      owasp: ["A08:2021 Software and Data Integrity Failures"]
+    pattern-either:
+      - pattern: new LosFormatter()
+      - pattern: new ObjectStateFormatter()

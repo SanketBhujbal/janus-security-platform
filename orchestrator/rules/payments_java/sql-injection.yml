@@ -1,0 +1,26 @@
+rules:
+  - id: payments.java.sql-injection
+    languages: [java]
+    severity: ERROR
+    message: >
+      SQL query built by string concatenation with caller-supplied data. Use
+      PreparedStatement with ? placeholders and setString/setInt to bind
+      parameters. String-interpolated SQL in a payments service is a direct
+      path to extracting card-holder data (PCI DSS 6.5.1).
+    metadata:
+      category: payments
+      cwe: ["CWE-89: SQL Injection"]
+      owasp: ["A03:2021 Injection"]
+      pci: ["6.5.1"]
+    pattern-either:
+      # Statement.execute* with any concatenation
+      - pattern: $STMT.execute($A + $B)
+      - pattern: $STMT.executeQuery($A + $B)
+      - pattern: $STMT.executeUpdate($A + $B)
+      # Connection.prepareStatement built from concatenated string
+      - pattern: $CONN.prepareStatement($A + $B)
+      # String.format fed directly to a JDBC method
+      - pattern: $STMT.execute(String.format($FMT, ...))
+      - pattern: $STMT.executeQuery(String.format($FMT, ...))
+      - pattern: $STMT.executeUpdate(String.format($FMT, ...))
+      - pattern: $CONN.prepareStatement(String.format($FMT, ...))

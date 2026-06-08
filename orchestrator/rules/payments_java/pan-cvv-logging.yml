@@ -1,0 +1,37 @@
+rules:
+  - id: payments.java.pan-cvv-logging
+    languages: [java]
+    severity: ERROR
+    message: >
+      Sensitive card data (PAN, CVV/CVC, track data) appears to flow into a
+      logger. PCI DSS 3.2 prohibits storing CVV at all; PAN must be masked
+      (first-6 + last-4 only). Remove or mask this data before logging.
+    metadata:
+      category: payments
+      cwe: ["CWE-532: Insertion of Sensitive Information into Log File"]
+      pci: ["3.2", "3.3", "3.4"]
+      owasp: ["A09:2021 Security Logging and Monitoring Failures"]
+    pattern-either:
+      # SLF4J/Log4j2 parameterized: log.info("card: {}", cardNumber)
+      - patterns:
+          - pattern: $LOG.$LEVEL($MSG, ..., $VAR, ...)
+          - metavariable-regex:
+              metavariable: $VAR
+              regex: '(?i)(pan|cvv|cvc|cav2|cardNumber|card_number|primaryAccountNumber|trackData|track_data|magstripe|pinBlock|pin_block)'
+      # SLF4J/Log4j2 concatenated: log.info("cvv=" + cvv)
+      - patterns:
+          - pattern: $LOG.$LEVEL($A + $VAR)
+          - metavariable-regex:
+              metavariable: $VAR
+              regex: '(?i)(pan|cvv|cvc|cardNumber|card_number|primaryAccountNumber|trackData)'
+      - patterns:
+          - pattern: $LOG.$LEVEL($VAR + $A)
+          - metavariable-regex:
+              metavariable: $VAR
+              regex: '(?i)(pan|cvv|cvc|cardNumber|card_number|primaryAccountNumber|trackData)'
+      # System.out.println
+      - patterns:
+          - pattern: System.out.println($VAR)
+          - metavariable-regex:
+              metavariable: $VAR
+              regex: '(?i)(pan|cvv|cvc|cardNumber|card_number|primaryAccountNumber|trackData)'

@@ -1,0 +1,24 @@
+rules:
+  - id: efficiency.linear-search-in-loop
+    languages: [python]
+    severity: WARNING
+    message: >
+      `x in list` inside a loop is O(n) per probe → O(n^2) overall. Build a
+      set once before the loop (`s = set(list)`) and check `x in s` for O(1)
+      lookups.
+    metadata:
+      category: efficiency
+      cost_class: hot-path
+      complexity_before: "O(n^2)"
+      complexity_after: "O(n)"
+    patterns:
+      - pattern: |
+          for $X in $OUTER:
+              ...
+              if $Y in $LIST:
+                  ...
+      - pattern-not-inside: |
+          $S = set($LIST)
+          ...
+          for $X in $OUTER:
+              ...

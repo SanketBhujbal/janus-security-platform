@@ -1,0 +1,61 @@
+rules:
+  - id: payments.java.spring-security-csrf-disabled
+    languages: [java]
+    severity: ERROR
+    message: >
+      Spring Security CSRF protection disabled. Payment endpoints that accept
+      POST/PUT/DELETE must have CSRF protection enabled to prevent cross-site
+      request forgery attacks that initiate payments on behalf of authenticated
+      users (PCI DSS 6.5.9). Remove .csrf().disable() or .csrf(c -> c.disable()).
+    metadata:
+      category: payments
+      cwe: ["CWE-352: Cross-Site Request Forgery (CSRF)"]
+      owasp: ["A01:2021 Broken Access Control"]
+      pci: ["6.5.9"]
+    pattern-either:
+      - pattern: $HTTP.csrf().disable()
+      - pattern: $HTTP.csrf($CSRF -> $CSRF.disable())
+
+  - id: payments.java.spring-security-permit-all-requests
+    languages: [java]
+    severity: ERROR
+    message: >
+      Spring Security configured to permit ALL requests without authentication.
+      This bypasses authentication for every endpoint including payment processing
+      and account management. Restrict .permitAll() only to explicitly public paths
+      like /login, /health, or /public/**.
+    metadata:
+      category: payments
+      cwe: ["CWE-306: Missing Authentication for Critical Function"]
+      owasp: ["A07:2021 Identification and Authentication Failures"]
+      pci: ["8.2"]
+    pattern-either:
+      - pattern: $AUTH.anyRequest().permitAll()
+      - pattern: $HTTP.authorizeRequests().anyRequest().permitAll()
+      - pattern: $HTTP.authorizeHttpRequests($A -> $A.anyRequest().permitAll())
+
+  - id: payments.java.spring-security-frame-options-disabled
+    languages: [java]
+    severity: WARNING
+    message: >
+      Spring Security X-Frame-Options header disabled. Payment pages embedded in
+      iframes can be clickjacked. Keep the default DENY or set SAMEORIGIN.
+    metadata:
+      category: payments
+      cwe: ["CWE-1021: Improper Restriction of Rendered UI Layers or Frames"]
+      owasp: ["A05:2021 Security Misconfiguration"]
+    pattern: $HTTP.headers().frameOptions().disable()
+
+  - id: payments.java.spring-security-headers-disabled
+    languages: [java]
+    severity: ERROR
+    message: >
+      All Spring Security security headers disabled via .headers().disable().
+      This removes X-Frame-Options, HSTS, X-Content-Type-Options, and CSP from
+      payment pages, exposing users to clickjacking, MIME sniffing, and downgrade
+      attacks.
+    metadata:
+      category: payments
+      cwe: ["CWE-693: Protection Mechanism Failure"]
+      owasp: ["A05:2021 Security Misconfiguration"]
+    pattern: $HTTP.headers().disable()

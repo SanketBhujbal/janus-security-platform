@@ -1,0 +1,33 @@
+rules:
+  - id: payments.java.missing-idempotency
+    languages: [java]
+    severity: WARNING
+    message: >
+      Payment-mutating Spring endpoint persists a record without checking an
+      Idempotency-Key header against a dedup store. Network retries and double-
+      clicks will create duplicate charges. Add @RequestHeader("Idempotency-Key")
+      String idempotencyKey, store (key -> response) with a TTL, and return
+      the cached response on replay.
+    metadata:
+      category: payments
+      cwe: ["CWE-841: Improper Enforcement of Behavioral Workflow"]
+      owasp: ["A04:2021 Insecure Design"]
+      pci: ["6.5"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $REPO.save($OBJ)
+              - pattern: $REPO.saveAndFlush($OBJ)
+              - pattern: $EM.persist($OBJ)
+          - pattern-not-regex: '(?i)idempot(?:enc|ent|ency)'
+          - pattern-inside: |
+              @PostMapping(...)
+              public $RET $METHOD(...) { ... }
+      - patterns:
+          - pattern-either:
+              - pattern: $REPO.save($OBJ)
+              - pattern: $REPO.saveAndFlush($OBJ)
+          - pattern-not-regex: '(?i)idempot(?:enc|ent|ency)'
+          - pattern-inside: |
+              @RequestMapping(method = RequestMethod.POST, ...)
+              public $RET $METHOD(...) { ... }

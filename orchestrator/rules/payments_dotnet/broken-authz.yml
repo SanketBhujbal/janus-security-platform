@@ -1,0 +1,27 @@
+rules:
+  - id: payments.dotnet.broken-authz-idor
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      Account/order/payment record is fetched by a caller-supplied id with no
+      ownership check. Classic IDOR -- User A can read User B's account by
+      changing the URL parameter. Verify the authenticated user owns the
+      resource before returning it (e.g. UserId == User.GetUserId()).
+    metadata:
+      category: payments
+      cwe: ["CWE-639: Authorization Bypass Through User-Controlled Key"]
+      owasp: ["A01:2021 Broken Access Control"]
+      pci: ["7.1"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $DB.Accounts.FirstOrDefault(x => x.Id == $ID)
+              - pattern: $DB.Accounts.FirstOrDefaultAsync(x => x.Id == $ID)
+              - pattern: $DB.Accounts.SingleOrDefault(x => x.Id == $ID)
+              - pattern: $DB.Accounts.Find($ID)
+              - pattern: $DB.Accounts.FindAsync($ID)
+              - pattern: $DB.Orders.FirstOrDefault(x => x.Id == $ID)
+              - pattern: $DB.Orders.Find($ID)
+              - pattern: $DB.Payments.Find($ID)
+              - pattern: $DB.Transactions.Find($ID)
+          - pattern-not-regex: '(?i)(userId|user\.id|user\.identity|getuserid|currentuser|owner|x\.userid)'

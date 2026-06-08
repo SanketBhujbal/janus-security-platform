@@ -1,0 +1,40 @@
+rules:
+  - id: payments.dotnet.dapper-sql-injection
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      Dapper query built by string interpolation or concatenation -- the
+      caller-controlled value gets stitched directly into the SQL text, not
+      bound as a parameter. Use the @-placeholder + anonymous-object form:
+      `conn.QueryAsync<T>("SELECT ... WHERE x = @x", new { x })`. Critical
+      for payments code where SQLi typically leaks card-holder data.
+    metadata:
+      category: payments
+      cwe: ["CWE-89: SQL Injection"]
+      owasp: ["A03:2021 Injection"]
+      pci: ["6.5.1"]
+    pattern-either:
+      # All async + sync Dapper extension methods with an interpolated $"..." SQL string
+      - pattern: $CONN.QueryAsync<$T>($"...{$X}...", ...)
+      - pattern: $CONN.QueryAsync($"...{$X}...", ...)
+      - pattern: $CONN.QueryFirstAsync<$T>($"...{$X}...", ...)
+      - pattern: $CONN.QueryFirstOrDefaultAsync<$T>($"...{$X}...", ...)
+      - pattern: $CONN.QuerySingleAsync<$T>($"...{$X}...", ...)
+      - pattern: $CONN.QuerySingleOrDefaultAsync<$T>($"...{$X}...", ...)
+      - pattern: $CONN.QueryMultipleAsync($"...{$X}...", ...)
+      - pattern: $CONN.ExecuteAsync($"...{$X}...", ...)
+      - pattern: $CONN.ExecuteScalarAsync<$T>($"...{$X}...", ...)
+      - pattern: $CONN.Query<$T>($"...{$X}...", ...)
+      - pattern: $CONN.Query($"...{$X}...", ...)
+      - pattern: $CONN.QueryFirst<$T>($"...{$X}...", ...)
+      - pattern: $CONN.QueryFirstOrDefault<$T>($"...{$X}...", ...)
+      - pattern: $CONN.QuerySingle<$T>($"...{$X}...", ...)
+      - pattern: $CONN.Execute($"...{$X}...", ...)
+      - pattern: $CONN.ExecuteScalar<$T>($"...{$X}...", ...)
+      # Concatenation variants
+      - pattern: $CONN.QueryAsync<$T>("..." + $X + "...", ...)
+      - pattern: $CONN.QueryAsync<$T>("..." + $X, ...)
+      - pattern: $CONN.ExecuteAsync("..." + $X + "...", ...)
+      - pattern: $CONN.ExecuteAsync("..." + $X, ...)
+      - pattern: $CONN.Query<$T>("..." + $X + "...", ...)
+      - pattern: $CONN.Execute("..." + $X + "...", ...)

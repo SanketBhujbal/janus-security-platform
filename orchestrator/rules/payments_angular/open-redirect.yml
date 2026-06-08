@@ -1,0 +1,27 @@
+rules:
+  - id: payments.angular.open-redirect-router
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: >
+      Angular Router navigation target derived from query parameters or route data.
+      Post-payment redirect flows (returnUrl, successUrl) that read from
+      ActivatedRoute.queryParams and pass directly to router.navigate() or
+      window.location.href allow open redirect attacks. Validate the URL is
+      a known internal route before navigating.
+    metadata:
+      category: payments
+      cwe: ["CWE-601: URL Redirection to Untrusted Site ('Open Redirect')"]
+      owasp: ["A01:2021 Broken Access Control"]
+    pattern-either:
+      - pattern: window.location.href = $ROUTE.snapshot.queryParams[$KEY]
+      - pattern: window.location.href = $PARAMS[$KEY]
+      - pattern: |
+          this.$ROUTE.queryParams.subscribe($P => {
+            ...
+            window.location.href = $P[$KEY];
+          })
+      - pattern: |
+          this.$ROUTE.queryParams.subscribe($P => {
+            ...
+            this.$ROUTER.navigate([$P[$KEY]]);
+          })

@@ -1,0 +1,45 @@
+rules:
+  - id: payments.python.ssrf-requests-user-url
+    languages: [python]
+    severity: ERROR
+    message: >
+      HTTP request made to a URL derived from request input (query param, JSON body,
+      or form field). Payment webhook handlers that call back a caller-supplied URL
+      are a classic SSRF vector — attackers reach internal metadata APIs
+      (AWS 169.254.169.254, GCP metadata), internal payment rails, or databases.
+      Validate the URL against an allowlist of known payment provider domains
+      (api.stripe.com, api.paypal.com, etc.) before making any outbound call.
+    metadata:
+      category: payments
+      cwe: ["CWE-918: Server-Side Request Forgery (SSRF)"]
+      owasp: ["A10:2021 Server-Side Request Forgery"]
+      pci: ["6.5.1"]
+    pattern-either:
+      - pattern: requests.get(request.$METHOD(), ...)
+      - pattern: requests.post(request.$METHOD(), ...)
+      - pattern: requests.put(request.$METHOD(), ...)
+      - pattern: requests.get(request.args[$KEY], ...)
+      - pattern: requests.post(request.args[$KEY], ...)
+      - pattern: requests.get(request.json[$KEY], ...)
+      - pattern: requests.post(request.json[$KEY], ...)
+      - pattern: requests.get(request.form[$KEY], ...)
+      - pattern: requests.post(request.form[$KEY], ...)
+      - pattern: httpx.get(request.$METHOD(), ...)
+      - pattern: httpx.post(request.$METHOD(), ...)
+
+  - id: payments.python.ssrf-urllib-user-url
+    languages: [python]
+    severity: ERROR
+    message: >
+      urllib.request.urlopen() called with a URL from request input. SSRF via
+      urllib can reach internal metadata services and internal network endpoints.
+      Allowlist payment provider domains before making outbound requests from
+      webhook or callback handlers.
+    metadata:
+      category: payments
+      cwe: ["CWE-918: Server-Side Request Forgery (SSRF)"]
+      owasp: ["A10:2021 Server-Side Request Forgery"]
+    pattern-either:
+      - pattern: urllib.request.urlopen(request.$METHOD(), ...)
+      - pattern: urllib.request.urlopen(request.args[$KEY], ...)
+      - pattern: urllib.request.urlopen(request.json[$KEY], ...)

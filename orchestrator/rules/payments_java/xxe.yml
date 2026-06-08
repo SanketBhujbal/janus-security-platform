@@ -1,0 +1,44 @@
+rules:
+  - id: payments.java.xxe-documentbuilder
+    languages: [java]
+    severity: ERROR
+    message: >
+      DocumentBuilderFactory.newInstance() without disabling external entity
+      resolution. XML payment messages (ISO 8583 over XML, SOAP gateway callbacks,
+      3DS responses) are a common XXE attack vector. Before calling newDocumentBuilder(),
+      set: factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true) and
+      factory.setExpandEntityReferences(false).
+    metadata:
+      category: payments
+      cwe: ["CWE-611: Improper Restriction of XML External Entity Reference"]
+      owasp: ["A05:2021 Security Misconfiguration"]
+      pci: ["6.5.1"]
+    pattern: DocumentBuilderFactory.newInstance()
+
+  - id: payments.java.xxe-saxparser
+    languages: [java]
+    severity: ERROR
+    message: >
+      SAXParserFactory.newInstance() without disabling external entity processing.
+      Before calling newSAXParser(), set:
+      factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true).
+    metadata:
+      category: payments
+      cwe: ["CWE-611: Improper Restriction of XML External Entity Reference"]
+      owasp: ["A05:2021 Security Misconfiguration"]
+      pci: ["6.5.1"]
+    pattern: SAXParserFactory.newInstance()
+
+  - id: payments.java.xxe-xmlinputfactory
+    languages: [java]
+    severity: ERROR
+    message: >
+      XMLInputFactory.newInstance() (StAX) without disabling external entity
+      and DTD support. Before creating XMLStreamReader, set:
+      factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false)
+      and factory.setProperty(XMLInputFactory.SUPPORT_DTD, false).
+    metadata:
+      category: payments
+      cwe: ["CWE-611: Improper Restriction of XML External Entity Reference"]
+      owasp: ["A05:2021 Security Misconfiguration"]
+    pattern: XMLInputFactory.newInstance()

@@ -1,0 +1,24 @@
+rules:
+  - id: payments.dotnet.context-identity-unchecked-cast
+    languages: [csharp]
+    severity: WARNING
+    message: >
+      `(ContextIdentity)HttpContext.User.Identity` cast without preceding
+      null/type check. If the request has no identity, the cast throws or
+      yields null and downstream `.UserId` / `.Role` access either crashes
+      or silently uses null -- a known bypass vector in SpeedPay's custom
+      auth pattern. Use `if (HttpContext.User.Identity is ContextIdentity ctx)`
+      or check `.IsAuthenticated` first.
+    metadata:
+      category: payments
+      cwe: ["CWE-476: NULL Pointer Dereference", "CWE-285: Improper Authorization"]
+      owasp: ["A01:2021 Broken Access Control"]
+    patterns:
+      - pattern-either:
+          - pattern: var $X = (ContextIdentity)HttpContext.User.Identity;
+          - pattern: ContextIdentity $X = (ContextIdentity)HttpContext.User.Identity;
+          - pattern: (ContextIdentity)HttpContext.User.Identity
+      - pattern-not-inside: |
+          if ($A is ContextIdentity $B) { ... }
+      - pattern-not-inside: |
+          if ($A.IsAuthenticated) { ... }

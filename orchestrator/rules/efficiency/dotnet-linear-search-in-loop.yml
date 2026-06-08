@@ -1,0 +1,25 @@
+rules:
+  - id: efficiency.dotnet.linear-search-in-loop
+    languages: [csharp]
+    severity: WARNING
+    message: >
+      `List<T>.Contains` inside a foreach is O(n) per probe -> O(n^2) overall.
+      Build a HashSet<T> once before the loop and check membership in O(1):
+        var set = new HashSet<T>(theList);
+        foreach (var x in outer) if (set.Contains(x)) { ... }
+    metadata:
+      category: efficiency
+      cost_class: hot-path
+      complexity_before: "O(n^2)"
+      complexity_after: "O(n)"
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              foreach (var $X in $OUTER) {
+                  ...
+              }
+          - pattern-inside: |
+              foreach ($T $X in $OUTER) {
+                  ...
+              }
+      - pattern: $LIST.Contains($Y)

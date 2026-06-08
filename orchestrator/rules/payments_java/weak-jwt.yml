@@ -1,0 +1,40 @@
+rules:
+  - id: payments.java.weak-jwt-signing-key
+    languages: [java]
+    severity: ERROR
+    message: >
+      JJWT signing key derived from a hard-coded string literal. Short or
+      guessable HMAC secrets allow offline brute-force and full token forgery.
+      Generate a cryptographically-random key of at least 256 bits using
+      Keys.secretKeyFor(SignatureAlgorithm.HS256) and inject it from a secrets
+      manager rather than hard-coding it.
+    metadata:
+      category: payments
+      cwe: ["CWE-347: Improper Verification of Cryptographic Signature"]
+      owasp: ["A07:2021 Identification and Authentication Failures"]
+      pci: ["8.3"]
+    pattern-either:
+      # JJWT 0.x: Jwts.builder().signWith(SignatureAlgorithm.HS256, "secret")
+      - pattern: $B.signWith($ALG, "$SECRET")
+      # JJWT 0.11+: Keys.hmacShaKeyFor("secret".getBytes())
+      - pattern: Keys.hmacShaKeyFor("$SECRET".getBytes())
+      - pattern: Keys.hmacShaKeyFor("$SECRET".getBytes($CHARSET))
+      # setSigningKey with string literal (parser side)
+      - pattern: $PARSER.setSigningKey("$SECRET")
+      # Jwts.builder().signWith(Keys.hmacShaKeyFor("literal".getBytes()), alg)
+      - pattern: $B.signWith(Keys.hmacShaKeyFor("$S".getBytes()), ...)
+
+  - id: payments.java.weak-jwt-none-algorithm
+    languages: [java]
+    severity: ERROR
+    message: >
+      The "none" JWT signing algorithm disables signature verification entirely.
+      Any attacker can craft arbitrary tokens without a key. Remove support for
+      SignatureAlgorithm.NONE and enforce HS256 or RS256 minimum.
+    metadata:
+      category: payments
+      cwe: ["CWE-347: Improper Verification of Cryptographic Signature"]
+      owasp: ["A07:2021 Identification and Authentication Failures"]
+      pci: ["8.3"]
+    patterns:
+      - pattern: $B.signWith(SignatureAlgorithm.NONE, ...)

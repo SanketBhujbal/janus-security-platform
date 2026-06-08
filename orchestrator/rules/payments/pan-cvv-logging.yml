@@ -1,0 +1,26 @@
+rules:
+  - id: payments.pan-cvv-logging
+    languages: [python, javascript, typescript]
+    severity: ERROR
+    message: >
+      Sensitive card data (PAN / CVV / CVC / track / magstripe) may be flowing
+      into a logger. PCI DSS 3.2 prohibits storage of CVV/CAV2/CVC2/CID at all,
+      and PAN must be masked at rest (display max first 6 + last 4).
+    metadata:
+      category: payments
+      cwe: ["CWE-532: Insertion of Sensitive Information into Log File"]
+      pci: ["3.2", "3.3", "3.4"]
+      owasp: ["A09:2021 Security Logging and Monitoring Failures"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $LOGGER.info(..., $X, ...)
+              - pattern: $LOGGER.debug(..., $X, ...)
+              - pattern: $LOGGER.warning(..., $X, ...)
+              - pattern: $LOGGER.error(..., $X, ...)
+              - pattern: console.log(..., $X, ...)
+              - pattern: console.error(..., $X, ...)
+              - pattern: System.out.println(..., $X, ...)
+          - metavariable-regex:
+              metavariable: $X
+              regex: '(?i)\b(pan|primary_account_number|card_number|cardnum|cvv|cvc|cav2|cid|track|magstripe)\b'

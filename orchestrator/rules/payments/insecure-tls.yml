@@ -1,0 +1,27 @@
+rules:
+  - id: payments.python.tls-cert-validation-disabled
+    languages: [python]
+    severity: ERROR
+    message: >
+      TLS certificate verification disabled (verify=False) on a requests call to
+      a payment gateway or external API. This allows man-in-the-middle attacks
+      that intercept card data in transit, violating PCI DSS Requirement 4.2.1.
+      Never disable verify=; if you have a custom CA, pass the CA bundle path:
+      requests.get(url, verify="/path/to/ca-bundle.crt").
+    metadata:
+      category: payments
+      cwe: ["CWE-295: Improper Certificate Validation"]
+      owasp: ["A02:2021 Cryptographic Failures"]
+      pci: ["4.2.1", "6.5.4"]
+    pattern-either:
+      - pattern: requests.get($URL, ..., verify=False, ...)
+      - pattern: requests.post($URL, ..., verify=False, ...)
+      - pattern: requests.put($URL, ..., verify=False, ...)
+      - pattern: requests.patch($URL, ..., verify=False, ...)
+      - pattern: requests.request($M, $URL, ..., verify=False, ...)
+      - pattern: httpx.get($URL, ..., verify=False, ...)
+      - pattern: httpx.post($URL, ..., verify=False, ...)
+      - pattern: |
+          $S = requests.Session()
+          ...
+          $S.verify = False

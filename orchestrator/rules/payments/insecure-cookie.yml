@@ -1,0 +1,21 @@
+rules:
+  - id: payments.python.cookie-missing-secure-httponly
+    languages: [python]
+    severity: ERROR
+    message: >
+      Flask response.set_cookie() called without secure=True and httponly=True.
+      Payment session cookies sent over plain HTTP can be intercepted; without
+      HttpOnly they are readable by JavaScript (XSS session theft). Always use:
+      response.set_cookie(key, value, secure=True, httponly=True, samesite="Strict").
+    metadata:
+      category: payments
+      cwe: ["CWE-614: Sensitive Cookie in HTTPS Session Without 'Secure' Attribute", "CWE-1004: Sensitive Cookie Without 'HttpOnly' Flag"]
+      owasp: ["A05:2021 Security Misconfiguration"]
+      pci: ["6.5.10"]
+    pattern-either:
+      - patterns:
+          - pattern: $RESP.set_cookie($K, $V, ...)
+          - pattern-not: $RESP.set_cookie($K, $V, ..., secure=True, ...)
+      - patterns:
+          - pattern: $RESP.set_cookie($K, $V, ...)
+          - pattern-not: $RESP.set_cookie($K, $V, ..., httponly=True, ...)

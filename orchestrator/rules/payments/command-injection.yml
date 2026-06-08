@@ -1,0 +1,26 @@
+rules:
+  - id: payments.python.command-injection-subprocess
+    languages: [python]
+    severity: ERROR
+    message: >
+      subprocess called with shell=True and a string that includes request data,
+      or with a user-controlled command list. Payment scripts that invoke shell
+      commands for invoice generation, PDF rendering, or currency lookups are
+      exploitable via command injection. Use subprocess with a fixed list of
+      arguments and shell=False; never interpolate request parameters into shell
+      command strings.
+    metadata:
+      category: payments
+      cwe: ["CWE-78: Improper Neutralization of Special Elements used in an OS Command"]
+      owasp: ["A03:2021 Injection"]
+      pci: ["6.5.1"]
+    pattern-either:
+      - pattern: subprocess.call($CMD + request.$METHOD(), shell=True)
+      - pattern: subprocess.run($CMD + request.$METHOD(), shell=True)
+      - pattern: subprocess.Popen($CMD + request.$METHOD(), shell=True)
+      - pattern: subprocess.call(f"... {request.$METHOD()} ...", shell=True)
+      - pattern: subprocess.run(f"... {request.$METHOD()} ...", shell=True)
+      - pattern: subprocess.Popen(f"... {request.$METHOD()} ...", shell=True)
+      - pattern: os.system(request.$METHOD())
+      - pattern: os.system(f"... {request.$METHOD()} ...")
+      - pattern: os.popen(request.$METHOD())

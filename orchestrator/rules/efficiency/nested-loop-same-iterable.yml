@@ -1,0 +1,18 @@
+rules:
+  - id: efficiency.nested-loop-same-iterable
+    languages: [python]
+    severity: WARNING
+    message: >
+      Nested loop iterating over the same collection produces O(n^2) behavior
+      when a hash-based lookup would give O(n). Convert the inner iteration
+      into a set/dict lookup, or zip the two iterations together.
+    metadata:
+      category: efficiency
+      cost_class: hot-path
+      complexity_before: "O(n^2)"
+      complexity_after: "O(n)"
+    pattern: |
+      for $X in $COLL:
+          ...
+          for $Y in $COLL:
+              ...

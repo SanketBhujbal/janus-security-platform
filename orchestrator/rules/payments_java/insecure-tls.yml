@@ -1,0 +1,48 @@
+rules:
+  - id: payments.java.tls-cert-validation-disabled
+    languages: [java]
+    severity: ERROR
+    message: >
+      SSL/TLS certificate validation disabled via a trust-all TrustManager or
+      disabled hostname verifier. Payment gateway connections (Stripe, PayPal,
+      Adyen, Braintree) MUST validate the server certificate — disabling this
+      allows man-in-the-middle attacks that intercept card data in transit.
+      PCI DSS Requirement 4.2.1 mandates strong cryptography for all cardholder
+      data in transit. Remove the custom TrustManager; use the default
+      SSLContext.getInstance("TLS") with the JVM trust store.
+    metadata:
+      category: payments
+      cwe: ["CWE-295: Improper Certificate Validation"]
+      owasp: ["A02:2021 Cryptographic Failures"]
+      pci: ["4.2.1", "6.5.4"]
+    pattern-either:
+      - pattern: |
+          new X509TrustManager() {
+            public void checkClientTrusted(...) {}
+            public void checkServerTrusted(...) {}
+            public X509Certificate[] getAcceptedIssuers() { return null; }
+          }
+      - pattern: HttpsURLConnection.setDefaultHostnameVerifier(($HOST, $SESSION) -> true)
+      - pattern: $CONN.setHostnameVerifier(($HOST, $SESSION) -> true)
+      - pattern: SSLConnectionSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER
+      - pattern: NoopHostnameVerifier.INSTANCE
+      - pattern: TrustAllStrategy.INSTANCE
+
+  - id: payments.java.tls-old-protocol
+    languages: [java]
+    severity: ERROR
+    message: >
+      SSLContext created with SSLv3, TLSv1, or TLSv1.1. All three are deprecated
+      and banned under PCI DSS 4.0 (Requirement 4.2.1). Use
+      SSLContext.getInstance("TLSv1.3") or at minimum "TLSv1.2" for all payment
+      gateway connections.
+    metadata:
+      category: payments
+      cwe: ["CWE-326: Inadequate Encryption Strength"]
+      owasp: ["A02:2021 Cryptographic Failures"]
+      pci: ["4.2.1"]
+    pattern-either:
+      - pattern: SSLContext.getInstance("SSLv3")
+      - pattern: SSLContext.getInstance("TLSv1")
+      - pattern: SSLContext.getInstance("TLSv1.1")
+      - pattern: SSLContext.getInstance("SSL")

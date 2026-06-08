@@ -1,0 +1,47 @@
+rules:
+  - id: efficiency.java.boxing-in-arithmetic-loop
+    languages: [java]
+    severity: WARNING
+    message: >
+      Boxed numeric types (`Integer`, `Long`, `Double`) used as arithmetic
+      accumulators inside a loop force autoboxing + unboxing on every
+      iteration -- each iteration allocates a new wrapper object on the heap.
+      Use the primitive (`int`, `long`, `double`) for hot-loop counters.
+    metadata:
+      category: efficiency
+      cost_class: hot-path
+      complexity_before: "O(n) wrapper allocations"
+      complexity_after: "O(1) total allocations"
+    pattern-either:
+      - pattern: |
+          Integer $S = $V;
+          ...
+          for ($T $X : $C) {
+              ...
+              $S = $S + $V2;
+              ...
+          }
+      - pattern: |
+          Integer $S = $V;
+          ...
+          for ($T $X : $C) {
+              ...
+              $S += $V2;
+              ...
+          }
+      - pattern: |
+          Long $S = $V;
+          ...
+          for ($T $X : $C) {
+              ...
+              $S += $V2;
+              ...
+          }
+      - pattern: |
+          Double $S = $V;
+          ...
+          for ($T $X : $C) {
+              ...
+              $S += $V2;
+              ...
+          }

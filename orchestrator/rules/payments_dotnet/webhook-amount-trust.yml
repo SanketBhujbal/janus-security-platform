@@ -1,0 +1,41 @@
+rules:
+  - id: payments.dotnet.webhook-amount-trust
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      Payment-gateway callback handler trusts amount from the request without
+      re-fetching the authoritative amount from your DB. Webhook callers can
+      be spoofed (or replayed with altered values) -- always reconcile against
+      your own order record before marking the order settled.
+    metadata:
+      category: payments
+      cwe: ["CWE-345: Insufficient Verification of Data Authenticity"]
+      owasp: ["A08:2021 Software and Data Integrity Failures"]
+      pci: ["6.5"]
+    paths:
+      exclude:
+        - "*Converter*.cs"
+        - "*Mapper*.cs"
+        - "*Translator*.cs"
+        - "*ToDomain*.cs"
+        - "*ToRequest*.cs"
+        - "*ToWebModel*.cs"
+        - "*DtoMapper*.cs"
+        - "*Repository*.cs"
+        - "*RepositoryHelper*.cs"
+        - "*PersistenceHelper*.cs"
+        - "*Query*.cs"
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $ORDER.Amount = $WEBHOOK.Amount;
+              - pattern: $ORDER.Amount = $WEBHOOK.amount;
+              - pattern: $ORDER.SettledAmount = $WEBHOOK.Amount;
+              - pattern: $ORDER.Total = $WEBHOOK.Amount;
+              - pattern: $ORDER.Amount = decimal.Parse($REQ.Form["amount"]);
+              - pattern: $ORDER.Amount = $REQ.Form["amount"];
+          - metavariable-regex:
+              metavariable: $WEBHOOK
+              # Only fire if the source variable name suggests it is a webhook
+              # or callback payload, not an internal result object.
+              regex: '(?i)^(webhook|callback|callbackpayload|cb|gatewayresponse|gatewaycallback|notification|notify|payload|ipn|psp)$'

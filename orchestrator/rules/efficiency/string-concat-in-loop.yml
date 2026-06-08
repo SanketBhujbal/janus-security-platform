@@ -1,0 +1,26 @@
+rules:
+  - id: efficiency.string-concat-in-loop
+    languages: [python]
+    severity: WARNING
+    message: >
+      String concatenation with `+=` in a loop allocates a new string every
+      iteration -- O(n^2) memory churn. Append parts to a list and call
+      ''.join(parts) at the end, or use io.StringIO.
+    metadata:
+      category: efficiency
+      cost_class: hot-path
+      complexity_before: "O(n^2) memory"
+      complexity_after: "O(n)"
+    pattern-either:
+      - pattern: |
+          $S = ""
+          ...
+          for $X in $C:
+              ...
+              $S += $T
+      - pattern: |
+          $S = ""
+          ...
+          for $X in $C:
+              ...
+              $S = $S + $T

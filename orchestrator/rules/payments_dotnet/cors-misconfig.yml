@@ -1,0 +1,25 @@
+rules:
+  - id: payments.dotnet.cors-allow-any-origin
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      CORS policy configured with AllowAnyOrigin() on a payment or account API.
+      Any website can make credentialed cross-origin requests to your payment
+      endpoints. Restrict origins to your known frontend domains using
+      WithOrigins("https://app.yourcompany.com") and never combine
+      AllowAnyOrigin() with AllowCredentials().
+    metadata:
+      category: payments
+      cwe: ["CWE-942: Permissive Cross-domain Policy with Untrusted Domains"]
+      owasp: ["A05:2021 Security Misconfiguration"]
+      pci: ["6.5.9"]
+    pattern-either:
+      - pattern: $POLICY.AllowAnyOrigin()
+      - pattern: |
+          $POLICY.AllowAnyOrigin()
+          ...
+          $POLICY.AllowCredentials()
+      - pattern: |
+          $POLICY.AllowCredentials()
+          ...
+          $POLICY.AllowAnyOrigin()

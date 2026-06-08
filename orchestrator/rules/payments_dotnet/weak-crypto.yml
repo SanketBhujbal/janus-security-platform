@@ -1,0 +1,67 @@
+rules:
+  - id: payments.dotnet.weak-hash-algorithm
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      MD5 or SHA-1 used for payment or credential data integrity. Both are
+      cryptographically broken and banned under PCI DSS 3.5.1. Replace with
+      SHA256.Create() or SHA512.Create(). Never hash PAN, CVV, or credentials
+      with MD5/SHA-1 — use PBKDF2 or bcrypt for credentials, SHA-256+ for
+      integrity checks.
+    metadata:
+      category: payments
+      cwe: ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      owasp: ["A02:2021 Cryptographic Failures"]
+      pci: ["3.5.1", "6.5.3"]
+    pattern-either:
+      - pattern: MD5.Create()
+      - pattern: MD5.HashData(...)
+      - pattern: new MD5CryptoServiceProvider()
+      - pattern: SHA1.Create()
+      - pattern: SHA1.HashData(...)
+      - pattern: new SHA1CryptoServiceProvider()
+      - pattern: new SHA1Managed()
+      - pattern: HashAlgorithm.Create("MD5")
+      - pattern: HashAlgorithm.Create("SHA1")
+      - pattern: HashAlgorithm.Create("SHA-1")
+
+  - id: payments.dotnet.weak-cipher-algorithm
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      DES, 3DES (TripleDES), or RC2 cipher used for payment data encryption.
+      All three are deprecated under PCI DSS 3.5.1. Migrate to
+      System.Security.Cryptography.AesGcm (AES-256-GCM) for authenticated
+      encryption of cardholder data.
+    metadata:
+      category: payments
+      cwe: ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      owasp: ["A02:2021 Cryptographic Failures"]
+      pci: ["3.5.1"]
+    pattern-either:
+      - pattern: DES.Create()
+      - pattern: new DESCryptoServiceProvider()
+      - pattern: TripleDES.Create()
+      - pattern: new TripleDESCryptoServiceProvider()
+      - pattern: new TripleDESCng()
+      - pattern: RC2.Create()
+      - pattern: new RC2CryptoServiceProvider()
+
+  - id: payments.dotnet.insecure-random
+    languages: [csharp]
+    severity: WARNING
+    message: >
+      System.Random used in a payments context. System.Random is not
+      cryptographically secure and its output is predictable. Use
+      System.Security.Cryptography.RandomNumberGenerator.GetBytes() for
+      payment tokens, idempotency keys, and transaction IDs.
+    metadata:
+      category: payments
+      cwe: ["CWE-338: Use of Cryptographically Weak Pseudo-Random Number Generator"]
+      owasp: ["A02:2021 Cryptographic Failures"]
+      pci: ["6.5.3"]
+    pattern-either:
+      - pattern: new Random()
+      - pattern: new Random($SEED)
+      - pattern: Random.Shared.Next(...)
+      - pattern: Random.Shared.NextBytes(...)

@@ -1,0 +1,24 @@
+rules:
+  - id: payments.duplicate-payment
+    languages: [python]
+    severity: WARNING
+    message: >
+      Transaction record is appended/inserted without a preceding idempotency
+      or uniqueness check. Network retries and client double-submits will
+      create duplicate charges.
+    metadata:
+      category: payments
+      cwe: ["CWE-841: Improper Enforcement of Behavioral Workflow"]
+      owasp: ["A04:2021 Insecure Design"]
+    patterns:
+      - pattern-either:
+          - pattern: '$LIST.append({"id": ..., "amount": ..., ...})'
+          - pattern: '$CUR.execute("INSERT INTO transactions ...", ...)'
+          - pattern: '$CUR.execute("INSERT INTO payments ...", ...)'
+      - pattern-not-inside: |
+          if $KEY in $DEDUP:
+              ...
+      - pattern-not-inside: |
+          if $DEDUP.get($KEY):
+              ...
+      - pattern-not-regex: '(?i)idempot(?:enc|ent)'

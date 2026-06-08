@@ -1,0 +1,24 @@
+rules:
+  - id: payments.angular.client-amount-posted
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: >
+      Angular service POSTs an amount value that came from a FormGroup / form
+      input directly to a payment endpoint. The backend must always reconcile
+      against a server-side order/quote -- if the client controls the amount,
+      it's the most common payment-tampering vector. Have the backend resolve
+      the true amount from the order id.
+    metadata:
+      category: payments
+      cwe: ["CWE-345: Insufficient Verification of Data Authenticity"]
+      owasp: ["A04:2021 Insecure Design"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: '$HTTP.post($URL, { ..., amount: $F.value.amount, ... })'
+              - pattern: '$HTTP.post($URL, { ..., amount: $F.value.$X, ... })'
+              - pattern: '$HTTP.post($URL, $F.value)'
+          - metavariable-pattern:
+              metavariable: $URL
+              language: regex
+              pattern: '(?i)(pay|payment|charge|checkout|transfer|order|refund|capture|settle)'

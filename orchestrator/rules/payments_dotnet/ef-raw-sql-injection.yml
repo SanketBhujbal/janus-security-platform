@@ -1,0 +1,19 @@
+rules:
+  - id: payments.dotnet.ef-raw-sql-injection
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      EF Core FromSqlRaw / ExecuteSqlRaw used with an interpolated string. The
+      interpolated value is concatenated, not parameterized. Use FromSqlInterpolated
+      / ExecuteSqlInterpolated instead, which converts {} placeholders into
+      DbParameter bindings.
+    metadata:
+      category: payments
+      cwe: ["CWE-89: SQL Injection"]
+      owasp: ["A03:2021 Injection"]
+      pci: ["6.5.1"]
+    pattern-either:
+      - pattern: $DB.Database.ExecuteSqlRaw($"...{$X}...", ...)
+      - pattern: $DB.$T.FromSqlRaw($"...{$X}...", ...)
+      - pattern: $DB.Database.ExecuteSqlRaw("..." + $X + "...", ...)
+      - pattern: $DB.$T.FromSqlRaw("..." + $X, ...)

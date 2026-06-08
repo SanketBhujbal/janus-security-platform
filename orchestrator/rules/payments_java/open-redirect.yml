@@ -1,0 +1,20 @@
+rules:
+  - id: payments.java.open-redirect
+    languages: [java]
+    severity: ERROR
+    message: >
+      HTTP redirect destination derived from caller-supplied data. Post-payment
+      redirect flows (return_url, success_url, cancel_url parameters) are a classic
+      open redirect target — attackers craft phishing URLs that appear to originate
+      from your payment domain. Validate the redirect URL against an allowlist of
+      permitted domains or restrict to relative paths only.
+    metadata:
+      category: payments
+      cwe: ["CWE-601: URL Redirection to Untrusted Site ('Open Redirect')"]
+      owasp: ["A01:2021 Broken Access Control"]
+      pci: ["6.5.1"]
+    pattern-either:
+      - pattern: $RESP.sendRedirect($REQ.getParameter($KEY))
+      - pattern: $RESP.sendRedirect($REQ.getQueryString())
+      - pattern: ResponseEntity.status(HttpStatus.FOUND).location(URI.create($REQ.getParameter($KEY))).build()
+      - pattern: new RedirectView($REQ.getParameter($KEY))

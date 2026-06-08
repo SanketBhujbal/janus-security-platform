@@ -1,0 +1,31 @@
+rules:
+  - id: payments.dotnet.command-injection-process-start
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      Process.Start() called with a FileName or Arguments derived from request
+      input. Payment processing scripts (PDF generators, statement exporters,
+      currency conversion utilities) that build shell commands from HTTP parameters
+      are exploitable via command injection. Use fixed command arrays; never
+      interpolate user-controlled data into shell arguments.
+    metadata:
+      category: payments
+      cwe: ["CWE-78: Improper Neutralization of Special Elements used in an OS Command"]
+      owasp: ["A03:2021 Injection"]
+      pci: ["6.5.1"]
+    pattern-either:
+      - patterns:
+          - pattern: |
+              ProcessStartInfo $PSI = new ProcessStartInfo();
+              ...
+              $PSI.Arguments = $REQ.$METHOD();
+              ...
+              Process.Start($PSI)
+      - patterns:
+          - pattern: |
+              ProcessStartInfo $PSI = new ProcessStartInfo();
+              ...
+              $PSI.FileName = $REQ.$METHOD();
+              ...
+              Process.Start($PSI)
+      - pattern: Process.Start($REQ.$METHOD(), ...)

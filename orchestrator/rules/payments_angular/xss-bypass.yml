@@ -1,0 +1,36 @@
+rules:
+  - id: payments.angular.bypass-security-trust
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >
+      Angular DomSanitizer.bypassSecurityTrust* called -- if the input is
+      user-controlled this is XSS by design. Most legitimate uses are
+      constants or values from a trusted backend; review carefully. In
+      payments back-office UIs, XSS often leads to session theft and
+      cross-tenant data exposure.
+    metadata:
+      category: payments
+      cwe: ["CWE-79: Cross-site Scripting"]
+      owasp: ["A03:2021 Injection"]
+    pattern-either:
+      - pattern: $S.bypassSecurityTrustHtml(...)
+      - pattern: $S.bypassSecurityTrustScript(...)
+      - pattern: $S.bypassSecurityTrustStyle(...)
+      - pattern: $S.bypassSecurityTrustUrl(...)
+      - pattern: $S.bypassSecurityTrustResourceUrl(...)
+
+  - id: payments.angular.inner-html-with-user-data
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: >
+      Assigning to innerHTML with caller-controlled data. Angular's binding
+      [innerHTML] uses the sanitizer, but raw .innerHTML = does not.
+      Prefer interpolation {{ }} or [innerText]; use [innerHTML] only when
+      necessary.
+    metadata:
+      category: payments
+      cwe: ["CWE-79: Cross-site Scripting"]
+    patterns:
+      - pattern: $EL.innerHTML = $X
+      - pattern-not: $EL.innerHTML = "..."
+      - pattern-not: $EL.innerHTML = ''

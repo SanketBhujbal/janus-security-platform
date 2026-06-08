@@ -1,0 +1,28 @@
+rules:
+  - id: payments.dotnet.missing-idempotency
+    languages: [csharp]
+    severity: WARNING
+    message: >
+      Payment-mutating endpoint persists a transaction/charge without checking
+      for an Idempotency-Key header against a dedup store. Network retries and
+      double-clicks will create duplicate charges. Require Idempotency-Key,
+      persist (key -> response) with a TTL, and return the cached response on
+      replay.
+    metadata:
+      category: payments
+      cwe: ["CWE-841: Improper Enforcement of Behavioral Workflow"]
+      owasp: ["A04:2021 Insecure Design"]
+      pci: ["6.5"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $DB.Transactions.Add(...)
+              - pattern: $DB.Payments.Add(...)
+              - pattern: $DB.Charges.Add(...)
+              - pattern: $REPO.Insert($X)
+              - pattern: $REPO.AddAsync(...)
+          - pattern-not-regex: '(?i)idempot(?:enc|ent)'
+          - pattern-not-inside: |
+              if ($DB.$T.Any(...)) { ... }
+          - pattern-not-inside: |
+              if (await $DB.$T.AnyAsync(...)) { ... }

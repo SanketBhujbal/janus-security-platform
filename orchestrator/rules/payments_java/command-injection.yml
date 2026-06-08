@@ -1,0 +1,34 @@
+rules:
+  - id: payments.java.command-injection-runtime
+    languages: [java]
+    severity: ERROR
+    message: >
+      Runtime.exec() called with a string that includes caller-supplied data.
+      Payment scripts that build shell commands from request parameters are
+      exploitable via command injection. Use ProcessBuilder with a fixed
+      command array — never pass user input to a shell interpreter.
+    metadata:
+      category: payments
+      cwe: ["CWE-78: Improper Neutralization of Special Elements used in an OS Command"]
+      owasp: ["A03:2021 Injection"]
+      pci: ["6.5.1"]
+    pattern-either:
+      - pattern: Runtime.getRuntime().exec($CMD + $USER)
+      - pattern: Runtime.getRuntime().exec($USER + $CMD)
+      - pattern: Runtime.getRuntime().exec(String.format($FMT, $USER))
+      - pattern: Runtime.getRuntime().exec($REQ.$METHOD())
+
+  - id: payments.java.command-injection-processbuilder
+    languages: [java]
+    severity: ERROR
+    message: >
+      ProcessBuilder constructed with caller-supplied data. Build the command
+      array from fixed string literals only; never include request parameters
+      in a ProcessBuilder command list.
+    metadata:
+      category: payments
+      cwe: ["CWE-78: Improper Neutralization of Special Elements used in an OS Command"]
+      owasp: ["A03:2021 Injection"]
+    pattern-either:
+      - pattern: new ProcessBuilder($REQ.$METHOD())
+      - pattern: new ProcessBuilder(Arrays.asList($REQ.$METHOD()))

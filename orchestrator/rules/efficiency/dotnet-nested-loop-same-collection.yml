@@ -1,0 +1,30 @@
+rules:
+  - id: efficiency.dotnet.nested-loop-same-collection
+    languages: [csharp]
+    severity: WARNING
+    message: >
+      Nested foreach over the same collection is O(n^2). For self-join /
+      duplicate-detection use a Dictionary keyed by the join attribute,
+      or a HashSet for pair detection.
+    metadata:
+      category: efficiency
+      cost_class: hot-path
+      complexity_before: "O(n^2)"
+      complexity_after: "O(n)"
+    pattern-either:
+      - pattern: |
+          foreach (var $X in $COLL) {
+              ...
+              foreach (var $Y in $COLL) {
+                  ...
+              }
+              ...
+          }
+      - pattern: |
+          foreach ($T1 $X in $COLL) {
+              ...
+              foreach ($T2 $Y in $COLL) {
+                  ...
+              }
+              ...
+          }

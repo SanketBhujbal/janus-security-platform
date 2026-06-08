@@ -1,0 +1,29 @@
+rules:
+  - id: payments.dotnet.open-redirect
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      Redirect destination derived from request input. Payment return_url /
+      success_url parameters are a common open redirect vector — an attacker
+      sends the user to a phishing site after a real payment completes.
+      Use Url.IsLocalUrl() to validate relative redirects, or check the host
+      against an explicit allowlist of your permitted payment callback domains.
+    metadata:
+      category: payments
+      cwe: ["CWE-601: URL Redirection to Untrusted Site ('Open Redirect')"]
+      owasp: ["A01:2021 Broken Access Control"]
+      pci: ["6.5.1"]
+    pattern-either:
+      - pattern: return Redirect(Request.$METHOD())
+      - pattern: return Redirect(Request.Query[$KEY])
+      - pattern: return Redirect(Request.Form[$KEY])
+      - pattern: Response.Redirect(Request.$METHOD())
+      - pattern: Response.Redirect(Request.Query[$KEY])
+      - pattern: |
+          var $URL = Request.Query[$KEY];
+          ...
+          return Redirect($URL)
+      - pattern: |
+          string $URL = Request.Query[$KEY];
+          ...
+          return Redirect($URL)

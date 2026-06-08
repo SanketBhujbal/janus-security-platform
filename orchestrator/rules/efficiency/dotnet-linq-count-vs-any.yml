@@ -1,0 +1,20 @@
+rules:
+  - id: efficiency.dotnet.linq-count-vs-any
+    languages: [csharp]
+    severity: WARNING
+    message: >
+      `.Count() > 0` enumerates the entire IEnumerable. `.Any()` short-circuits
+      after the first element. Same result, dramatically cheaper on large or
+      lazy sequences.
+    metadata:
+      category: efficiency
+      cost_class: warm-path
+      complexity_before: "O(n)"
+      complexity_after: "O(1) for materialized, O(k) for lazy"
+    pattern-either:
+      - pattern: $X.Count() > 0
+      - pattern: $X.Count() >= 1
+      - pattern: $X.Count() != 0
+      - pattern: 0 < $X.Count()
+      - pattern: 1 <= $X.Count()
+      - pattern: 0 != $X.Count()

@@ -1,0 +1,36 @@
+rules:
+  - id: payments.java.insecure-deserialization-objectinputstream
+    languages: [java]
+    severity: ERROR
+    message: >
+      ObjectInputStream used to deserialize data. Java native deserialization of
+      untrusted input allows remote code execution via gadget chains (Apache Commons
+      Collections, Spring, Hibernate). Payment message queues and callback endpoints
+      are high-value targets. Use JSON (Jackson/Gson) or protobuf for payment
+      message exchange; if Java serialization is unavoidable use
+      ValidatingObjectInputStream with an explicit class allowlist.
+    metadata:
+      category: payments
+      cwe: ["CWE-502: Deserialization of Untrusted Data"]
+      owasp: ["A08:2021 Software and Data Integrity Failures"]
+      pci: ["6.5.8"]
+    pattern: new ObjectInputStream(...)
+
+  - id: payments.java.insecure-deserialization-xstream
+    languages: [java]
+    severity: ERROR
+    message: >
+      XStream used to deserialize XML without a security framework configured.
+      XStream deserialization of untrusted input can execute arbitrary code. Call
+      xstream.addPermission(NoTypePermission.NONE) and add only the expected
+      payment DTO classes to the allowlist, or migrate to Jackson with
+      explicit type configuration.
+    metadata:
+      category: payments
+      cwe: ["CWE-502: Deserialization of Untrusted Data"]
+      owasp: ["A08:2021 Software and Data Integrity Failures"]
+    patterns:
+      - pattern: $XS.fromXML(...)
+      - pattern-inside: |
+          XStream $XS = new XStream();
+          ...

@@ -1,0 +1,22 @@
+rules:
+  - id: payments.angular.auth-token-in-local-storage
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: >
+      Auth/session token persisted to localStorage or sessionStorage. Any XSS
+      on the page can read it. Use an httpOnly Secure SameSite=Strict cookie
+      issued by the backend so JS cannot read it. Especially critical for
+      back-office / admin / payment-processing UIs.
+    metadata:
+      category: payments
+      cwe: ["CWE-922: Insecure Storage of Sensitive Information"]
+      owasp: ["A07:2021 Identification and Authentication Failures"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: localStorage.setItem($K, $V)
+              - pattern: sessionStorage.setItem($K, $V)
+          - metavariable-pattern:
+              metavariable: $K
+              language: regex
+              pattern: '(?i)(token|jwt|accessToken|access_token|idToken|id_token|authToken|auth_token|bearer|session)'

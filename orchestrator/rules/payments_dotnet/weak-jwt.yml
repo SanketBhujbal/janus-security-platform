@@ -1,0 +1,33 @@
+rules:
+  - id: payments.dotnet.weak-jwt-validation
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      JWT bearer options disable a core validation. ValidateIssuer,
+      ValidateAudience, ValidateLifetime, and RequireExpirationTime must all be
+      true in production. Disabling any of them allows token forgery, replay
+      after expiry, or cross-tenant token use.
+    metadata:
+      category: payments
+      cwe: ["CWE-347: Improper Verification of Cryptographic Signature"]
+      owasp: ["A07:2021 Identification and Authentication Failures"]
+      pci: ["8.3"]
+    pattern-either:
+      - pattern: |
+          new TokenValidationParameters { ..., ValidateIssuer = false, ... }
+      - pattern: |
+          new TokenValidationParameters { ..., ValidateAudience = false, ... }
+      - pattern: |
+          new TokenValidationParameters { ..., ValidateLifetime = false, ... }
+      - pattern: |
+          new TokenValidationParameters { ..., RequireExpirationTime = false, ... }
+      - pattern: |
+          new TokenValidationParameters { ..., ValidateIssuerSigningKey = false, ... }
+      - pattern: |
+          $OPT.TokenValidationParameters.ValidateIssuer = false;
+      - pattern: |
+          $OPT.TokenValidationParameters.ValidateAudience = false;
+      - pattern: |
+          $OPT.TokenValidationParameters.ValidateLifetime = false;
+      - pattern: |
+          $OPT.TokenValidationParameters.RequireExpirationTime = false;

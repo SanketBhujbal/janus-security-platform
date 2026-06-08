@@ -1,0 +1,20 @@
+rules:
+  - id: payments.session-misuse
+    languages: [python]
+    severity: WARNING
+    message: >
+      Session/token store assignment has no associated expiry, TTL, or revocation
+      mechanism. Tokens should have explicit expiration and be invalidated on
+      logout / credential change.
+    metadata:
+      category: payments
+      cwe:
+        - "CWE-613: Insufficient Session Expiration"
+        - "CWE-384: Session Fixation"
+      owasp: ["A07:2021 Identification and Authentication Failures"]
+    patterns:
+      - pattern: $MAP[$TOKEN] = $USER
+      - metavariable-regex:
+          metavariable: $MAP
+          regex: '(?i)tokens?|sessions?|jwts?'
+      - pattern-not-regex: '(?i)exp(?:ir)?|ttl|timedelta|datetime|now\(\)|time\.time'

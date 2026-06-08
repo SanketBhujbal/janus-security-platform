@@ -1,0 +1,58 @@
+rules:
+  - id: payments.dotnet.pipes-card-data-logged
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      Card data (payment.Card.CardNumber / Cvv / Pan / Cvc / TrackData)
+      appears to flow into a logger inside a pipe / filter / interceptor.
+      In the SpeedPay core-clientpipes architecture, the Payment object
+      moves through filters; if any of them logs the card -- even at debug
+      -- the data lands in a log file outside the PCI scope perimeter.
+      Mask before logging (first6 + last4 only) or drop the value entirely.
+    metadata:
+      category: payments
+      cwe: ["CWE-532: Insertion of Sensitive Information into Log File"]
+      pci: ["3.2", "3.4"]
+      owasp: ["A09:2021 Security Logging and Monitoring Failures"]
+    pattern-either:
+      - pattern: $LOG.Information(..., $X.Card.CardNumber, ...)
+      - pattern: $LOG.Information(..., $X.Card.Cvv, ...)
+      - pattern: $LOG.Information(..., $X.Card.Pan, ...)
+      - pattern: $LOG.Debug(..., $X.Card.CardNumber, ...)
+      - pattern: $LOG.Debug(..., $X.Card.Cvv, ...)
+      - pattern: $LOG.Warning(..., $X.Card.CardNumber, ...)
+      - pattern: $LOG.Error(..., $X.Card.CardNumber, ...)
+      - pattern: $LOG.LogInformation(..., $X.Card.CardNumber, ...)
+      - pattern: $LOG.LogInformation(..., $X.Card.Cvv, ...)
+      - pattern: $LOG.LogDebug(..., $X.Card.CardNumber, ...)
+      - pattern: $LOG.LogDebug(..., $X.Card.Cvv, ...)
+      - pattern: $LOG.LogError(..., $X.Card.CardNumber, ...)
+      - pattern: $LOG.LogWarning(..., $X.Card.CardNumber, ...)
+      - patterns:
+          - pattern-either:
+              - pattern: $LOG.LogInformation($MSG, ..., $X.Card, ...)
+              - pattern: $LOG.LogDebug($MSG, ..., $X.Card, ...)
+          - metavariable-pattern:
+              metavariable: $MSG
+              language: regex
+              pattern: '(?i)(card|pan|cvv|pin)'
+
+  - id: payments.dotnet.method-takes-raw-pan-cvv
+    languages: [csharp]
+    severity: WARNING
+    message: >
+      Method signature accepts raw PAN + CVV as separate string parameters.
+      This expands PCI scope across every caller / DI chain reaching this
+      method. Wrap card data in a single dedicated type (e.g. `CardCredential`)
+      with explicit serialization controls so accidental logging or DTO
+      serialization can be governed centrally.
+    metadata:
+      category: payments
+      cwe: ["CWE-200: Exposure of Sensitive Information"]
+      pci: ["3.2"]
+    pattern-either:
+      - pattern: $T $METHOD(..., string cardNumber, ..., string cvv, ...)
+      - pattern: $T $METHOD(..., string CardNumber, ..., string Cvv, ...)
+      - pattern: $T $METHOD(..., string pan, ..., string cvv, ...)
+      - pattern: Task<$T> $METHOD(..., string cardNumber, ..., string cvv, ...)
+      - pattern: Task $METHOD(..., string cardNumber, ..., string cvv, ...)

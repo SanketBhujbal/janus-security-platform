@@ -1,0 +1,24 @@
+rules:
+  - id: efficiency.java.regex-recompile-in-loop
+    languages: [java]
+    severity: WARNING
+    message: >
+      `Pattern.compile(...)` (or `String.matches` which compiles internally)
+      inside a for-each recompiles the regex every iteration. Hoist the
+      compiled pattern to a `private static final Pattern` field so the
+      regex is built once at class load:
+        private static final Pattern PAT = Pattern.compile("...");
+        for (var x : xs) PAT.matcher(x).find();
+    metadata:
+      category: efficiency
+      cost_class: hot-path
+      complexity_before: "O(n) compiles"
+      complexity_after: "1 compile"
+    patterns:
+      - pattern-inside: |
+          for ($T $X : $C) {
+              ...
+          }
+      - pattern-either:
+          - pattern: Pattern.compile($PAT)
+          - pattern: $S.matches($PAT)

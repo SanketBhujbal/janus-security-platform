@@ -1,0 +1,31 @@
+rules:
+  - id: payments.angular.card-data-in-local-storage
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >
+      Card data (PAN / CVV / card number) appears to be written to
+      localStorage or sessionStorage. Card data must never persist
+      client-side -- PCI DSS prohibits storage outside the payment processor.
+      Use a tokenized representation from the payment gateway instead.
+    metadata:
+      category: payments
+      cwe: ["CWE-312: Cleartext Storage of Sensitive Information"]
+      owasp: ["A02:2021 Cryptographic Failures"]
+      pci: ["3.2", "3.4"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: localStorage.setItem($K, $V)
+              - pattern: sessionStorage.setItem($K, $V)
+          - metavariable-pattern:
+              metavariable: $K
+              language: regex
+              pattern: '(?i)(pan|card|cvv|cvc|cardnumber|cardnum|primaryaccount)'
+      - patterns:
+          - pattern-either:
+              - pattern: localStorage.setItem($K, $V)
+              - pattern: sessionStorage.setItem($K, $V)
+          - metavariable-pattern:
+              metavariable: $V
+              language: regex
+              pattern: '(?i)(\.pan|\.cardNumber|\.cvv|\.cvc)'

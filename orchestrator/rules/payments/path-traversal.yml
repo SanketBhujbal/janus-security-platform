@@ -1,0 +1,23 @@
+rules:
+  - id: payments.python.path-traversal-open
+    languages: [python]
+    severity: ERROR
+    message: >
+      File opened with a path derived from request data. Payment applications
+      serving invoices, receipts, or export files by filename are exploitable
+      via path traversal. Use os.path.realpath() on the resolved path and assert
+      it starts with the expected base directory before opening.
+    metadata:
+      category: payments
+      cwe: ["CWE-22: Improper Limitation of a Pathname to a Restricted Directory"]
+      owasp: ["A01:2021 Broken Access Control"]
+      pci: ["6.5.1"]
+    pattern-either:
+      - pattern: open(request.$METHOD(), ...)
+      - pattern: open(request.args[$KEY], ...)
+      - pattern: open(request.json[$KEY], ...)
+      - pattern: open(os.path.join($BASE, request.$METHOD()), ...)
+      - pattern: open(os.path.join($BASE, request.args[$KEY]), ...)
+      - pattern: pathlib.Path(request.$METHOD()).read_bytes()
+      - pattern: pathlib.Path(request.$METHOD()).read_text(...)
+      - pattern: pathlib.Path(request.args[$KEY]).read_text(...)

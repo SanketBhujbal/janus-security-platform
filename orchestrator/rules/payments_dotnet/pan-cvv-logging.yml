@@ -1,0 +1,36 @@
+rules:
+  - id: payments.dotnet.pan-cvv-logging
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      Sensitive card data (PAN, CVV/CVC/CAV2/CID, track/magstripe) appears to be
+      passed to a logger. PCI DSS 3.2 prohibits storing CVV at all, and PAN
+      must be masked (display first-6 + last-4 only). Mask or drop the value
+      before logging.
+    metadata:
+      category: payments
+      cwe: ["CWE-532: Insertion of Sensitive Information into Log File"]
+      pci: ["3.2", "3.3", "3.4"]
+      owasp: ["A09:2021 Security Logging and Monitoring Failures"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $LOG.LogInformation($MSG, ...)
+              - pattern: $LOG.LogDebug($MSG, ...)
+              - pattern: $LOG.LogWarning($MSG, ...)
+              - pattern: $LOG.LogError($MSG, ...)
+              - pattern: $LOG.LogTrace($MSG, ...)
+          - metavariable-pattern:
+              metavariable: $MSG
+              language: regex
+              pattern: '(?i)(pan|cvv|cvc|cav2|cardnumber|primaryAccountNumber|track|magstripe|pinBlock)'
+      - patterns:
+          - pattern-either:
+              - pattern: Console.WriteLine($MSG, ...)
+              - pattern: Console.WriteLine($MSG)
+              - pattern: Debug.WriteLine($MSG, ...)
+              - pattern: Trace.WriteLine($MSG, ...)
+          - metavariable-pattern:
+              metavariable: $MSG
+              language: regex
+              pattern: '(?i)(pan|cvv|cvc|cardnumber)'

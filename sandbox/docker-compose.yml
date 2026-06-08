@@ -1,0 +1,26 @@
+networks:
+  security-orchestrator-sandbox:
+    name: security-orchestrator-sandbox
+
+services:
+  target-api:
+    build: ./target-api
+    image: security-orchestrator/target-api:latest
+    container_name: target-api
+    networks:
+      - security-orchestrator-sandbox
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health').read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  attacker-image-builder:
+    build: ./attacker
+    image: security-orchestrator/attacker:latest
+    profiles: ["build-only"]
+    command: ["true"]
+    networks:
+      - security-orchestrator-sandbox
