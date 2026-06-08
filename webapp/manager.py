@@ -88,6 +88,7 @@ class ScanParams:
     ci_base_ref: str = "origin/main"
     ci_fail_severity: Severity = Severity.HIGH
     ci_pr_number: int | None = None
+    max_candidates: int | None = None   # LLM variants per efficiency finding
     # Import-mode fields ---------------------------------------------------
     sarif_content: str | None = None          # raw SARIF JSON (import-sarif mode)
     checkmarx_url: str | None = None          # e.g. "https://eu.checkmarx.net"
@@ -194,12 +195,14 @@ class ScanRunner:
         deployer = None
         if launch is not None:
             command, cwd, extra_env, target_script = launch
+            # Auto-default health_url when not explicitly provided.
+            health_url = self.params.health_url or "http://localhost:8080/health"
             deployer = SubprocessTargetDeployer(
                 target_script=target_script,
                 command=command,
                 cwd=cwd,
                 env=extra_env,
-                health_url=self.params.health_url,
+                health_url=health_url,
                 startup_seconds=2.0 if command else 0.5,
             )
         else:
@@ -286,15 +289,36 @@ class ScanRunner:
             )
         return None
 
+    def _infer_target_endpoint(self) -> str | None:
+        """When the user runs full-loop mode against a local repo without
+        explicitly supplying a target URL, auto-detect a sensible default so
+        the attacker agent always has somewhere to hit."""
+        if self.params.target_endpoint:
+            return self.params.target_endpoint
+        if self.params.mode not in ("full",):
+            return None
+        repo = self.params.repo
+        # Python Flask target — app.py present → assume localhost:8080
+        if (repo / "app.py").exists():
+            self.emit("scan_start",
+                      "target_endpoint not set — defaulting to http://localhost:8080",
+                      mode=self.params.mode)
+            return "http://localhost:8080"
+        # .NET target — .csproj present → also localhost:8080 (ASPNETCORE_URLS)
+        if next(iter(repo.glob("*.csproj")), None):
+            return "http://localhost:8080"
+        return None
+
     def _build_brain(self) -> SecurityBrain:
         # Import modes run the full pipeline (attacker+healer+validator) against
         # externally supplied findings, so they are NOT scan-only.
         scan_only = self.params.mode == "scan-only"
         llm = None if scan_only else self._build_llm()
         runner, deployer = self._build_runner_and_deployer()
+        target_endpoint = self._infer_target_endpoint()
         return SecurityBrain(
             repo_root=self.params.repo,
-            target_endpoint=self.params.target_endpoint,
+            target_endpoint=target_endpoint,
             rules_dir=DEFAULT_RULES,
             llm=llm,
             min_severity=self.params.min_severity,
@@ -378,6 +402,7 @@ class ScanRunner:
             bitbucket_repo_slug=self.params.bitbucket_repo_slug,
             bitbucket_token=self.params.bitbucket_token,
             profile_hints=profile_hints,
+            max_candidates=self.params.max_candidates,
         )
 
     def _build_ci_guard(self):

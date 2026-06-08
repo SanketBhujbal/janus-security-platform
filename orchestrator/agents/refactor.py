@@ -27,9 +27,10 @@ from .base import Agent, AgentContext
 
 log = logging.getLogger("security_brain.refactor")
 
-# How many independent refactor variants to request from the LLM. Python gets
-# the full multi-candidate treatment; compiled languages get a single best-shot
-# because their benchmark programs are self-contained (no cheap candidate swap).
+# Default number of independent refactor variants to request from the LLM.
+# Python gets the full multi-candidate treatment; compiled languages get a
+# single best-shot because their benchmark programs are self-contained.
+# Override per instance with RefactorAgent(max_candidates=N).
 CANDIDATES_PER_LANG = {"python": 3, "java": 1, "dotnet": 1}
 
 LANG_LABEL = {"python": "Python", "java": "Java", "dotnet": "C#/.NET"}
@@ -175,6 +176,11 @@ standard library / runtime only.
 class RefactorAgent(Agent):
     name = "refactor"
 
+    def __init__(self, llm, max_candidates: int | None = None):
+        super().__init__(llm)
+        # None means "use the language-based default from CANDIDATES_PER_LANG"
+        self._max_candidates_override = max_candidates
+
     def run_finding(self, finding: PerfFinding, ctx: AgentContext) -> PerfFinding:
         language = (finding.language or "python").lower()
         if language not in LANG_LABEL:
@@ -191,7 +197,8 @@ class RefactorAgent(Agent):
         original_func = self._slice_function(file_text, finding.function_name, language) \
             or finding.location.snippet
 
-        num = CANDIDATES_PER_LANG.get(language, 1)
+        default_num = CANDIDATES_PER_LANG.get(language, 1)
+        num = self._max_candidates_override if self._max_candidates_override is not None else default_num
         system = _system_prompt(language, num)
         user_prompt = self._user_prompt(finding, module_name, original_func, file_text, language)
 

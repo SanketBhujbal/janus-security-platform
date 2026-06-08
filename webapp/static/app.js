@@ -589,6 +589,9 @@ function buildOutcomeBanner(f) {
         } else if (/redeploy/i.test(reasonNote)) {
             headline = "Validator could not redeploy target";
             detail = "Patch applied but the target service failed to restart for the replay step.";
+        } else if (/BENCH_RESULT|timed out|TIMEOUT/i.test(reasonNote)) {
+            headline = "Benchmark timed out — cannot verify";
+            detail = "The original function is so slow that even a single benchmark call exceeded JANUS's 60-second safety limit. A refactoring was generated but JANUS refuses to apply it without measured proof it is both correct AND faster. This protects production from unverified changes.";
         } else {
             headline = "Failed";
             detail = reasonNote || "See Notes below for the specific failure mode.";
@@ -798,6 +801,48 @@ async function startEfficiencyDemo() {
     };
 }
 
+async function startSecurityDotnetDemo() {
+    const allBtns = ["startBtn","demoDotnetBtn","demoSecDotnetBtn","efficiencyBtn","effDotnetBtn"];
+    const reenable = () => allBtns.forEach(id => { if ($(id)) $(id).disabled = false; });
+    state.findings.clear(); renderFindings();
+    $("logStream").innerHTML = "";
+    updateKpis({ mode: "full", scanned: 0, exploited: 0, patched: 0, validated: 0, failed: 0 });
+    setStatus("starting .NET security demo…", "running");
+    allBtns.forEach(id => { if ($(id)) $(id).disabled = true; });
+    $("downloadBtn").disabled = true; $("complianceBtn").disabled = true;
+    closeEventSource();
+    appendLog({ ts: new Date().toISOString(), type: "scan_start",
+        message: "Demo: .NET security — 4 PCI-DSS findings (3 validated + 1 failed)" });
+    let resp;
+    try { resp = await fetch("/api/scans/demo-security-dotnet", { method: "POST" }); }
+    catch (e) { setStatus("error","error"); appendLog({ts:new Date().toISOString(),type:"scan_error",message:String(e)}); reenable(); return; }
+    if (!resp.ok) { const t=await resp.text(); setStatus("error","error"); appendLog({ts:new Date().toISOString(),type:"scan_error",message:`HTTP ${resp.status}: ${t}`}); reenable(); return; }
+    const { scan_id } = await resp.json(); setScanId(scan_id); setStatus("running","running");
+    const es = new EventSource(`/api/scans/${scan_id}/events`); state.eventSource = es;
+    es.onmessage = (e) => { try { const ev=JSON.parse(e.data); handleEvent(ev); if(ev.type==="scan_done"||ev.type==="scan_error") reenable(); } catch(err){console.error(err);} };
+}
+
+async function startEfficiencyDotnetDemo() {
+    const allBtns = ["startBtn","demoDotnetBtn","demoSecDotnetBtn","efficiencyBtn","effDotnetBtn"];
+    const reenable = () => allBtns.forEach(id => { if ($(id)) $(id).disabled = false; });
+    state.findings.clear(); renderFindings();
+    $("logStream").innerHTML = "";
+    updateKpis({ mode: "efficiency", scanned: 0, exploited: 0, patched: 0, validated: 0, failed: 0 });
+    setStatus("starting .NET efficiency demo…", "running");
+    allBtns.forEach(id => { if ($(id)) $(id).disabled = true; });
+    $("downloadBtn").disabled = true; $("complianceBtn").disabled = true;
+    closeEventSource();
+    appendLog({ ts: new Date().toISOString(), type: "scan_start",
+        message: "Demo: .NET efficiency — 3 C# anti-patterns (2 verified + 1 failed)" });
+    let resp;
+    try { resp = await fetch("/api/scans/demo-efficiency-dotnet", { method: "POST" }); }
+    catch (e) { setStatus("error","error"); appendLog({ts:new Date().toISOString(),type:"scan_error",message:String(e)}); reenable(); return; }
+    if (!resp.ok) { const t=await resp.text(); setStatus("error","error"); appendLog({ts:new Date().toISOString(),type:"scan_error",message:`HTTP ${resp.status}: ${t}`}); reenable(); return; }
+    const { scan_id } = await resp.json(); setScanId(scan_id); setStatus("running","running");
+    const es = new EventSource(`/api/scans/${scan_id}/events`); state.eventSource = es;
+    es.onmessage = (e) => { try { const ev=JSON.parse(e.data); handleEvent(ev); if(ev.type==="scan_done"||ev.type==="scan_error") reenable(); } catch(err){console.error(err);} };
+}
+
 async function startDotnetDemoLoop() {
     // Full attack -> patch -> validate loop against the seeded ASP.NET Core target.
     const demoBtns = ["startBtn", "demoDotnetBtn", "efficiencyBtn"];
@@ -832,7 +877,7 @@ async function startDotnetDemoLoop() {
     }
     let resp;
     try {
-        resp = await fetch("/api/scans/demo-dotnet", { method: "POST",
+        resp = await fetch("/api/scans/demo-security", { method: "POST",
             headers: { "Content-Type": "application/json" }, body });
     } catch (e) {
         setStatus("error", "error");
@@ -874,8 +919,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const m = $("mode").value;
         if (m === "efficiency" || m === "efficiency-profile" || m === "efficiency-ci-guard") loadLifetimeSavings();
     });
-    $("demoDotnetBtn").addEventListener("click", startDotnetDemoLoop);
-    $("efficiencyBtn").addEventListener("click", startEfficiencyDemo);
+    $("demoDotnetBtn").addEventListener("click", startSecurityDotnetDemo);
+    $("efficiencyBtn").addEventListener("click", startEfficiencyDotnetDemo);
     $("drawerClose").addEventListener("click", closeDrawer);
     $("drawerBackdrop").addEventListener("click", closeDrawer);
     $("downloadBtn").addEventListener("click", async () => {
