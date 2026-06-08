@@ -200,6 +200,81 @@ COMPLIANCE_MAP: dict[str, dict[str, Any]] = {
         "nist": ["SI-2 - Flaw remediation"],
         "summary": "Custom business-logic vulnerability — review against applicable controls.",
     },
+
+    # ── Efficiency mission findings ──────────────────────────────────────────
+    # Framework references for algorithmic / resource-efficiency anti-patterns.
+    # Sources: ISO 25010, Green Software Foundation SCI, FinOps, NIST SP 800-190.
+    "linear_search_in_loop": {
+        "pci_dss": ["6.2.4 - Prevent vulnerabilities in bespoke software"],
+        "owasp": ["A04:2021 - Insecure Design (algorithmic complexity)"],
+        "soc2": ["A1.2 - Processing capacity to meet objectives", "CC7.2 - Monitor for anomalies"],
+        "nist": ["SA-15 - Development process standards", "SI-2 - Flaw remediation"],
+        "gsf": ["SCI - Software Carbon Intensity (reduce energy per user)"],
+        "iso25010": ["ISO 25010 - Performance Efficiency / Time Behaviour"],
+        "summary": "O(n²) linear search in a loop. Replace with a set/dict for O(1) lookups, "
+                   "reducing CPU time, cloud cost, and carbon footprint at scale.",
+    },
+    "nested_loop_same_iterable": {
+        "pci_dss": ["6.2.4 - Prevent vulnerabilities in bespoke software"],
+        "owasp": ["A04:2021 - Insecure Design (quadratic complexity)"],
+        "soc2": ["A1.2 - Processing capacity", "CC9.1 - Risk management"],
+        "nist": ["SA-15 - Development process", "SI-2 - Flaw remediation"],
+        "gsf": ["SCI - Software Carbon Intensity", "Green Software Foundation - Energy Efficiency"],
+        "iso25010": ["ISO 25010 - Performance Efficiency / Time Behaviour"],
+        "summary": "Nested loop over the same collection creates O(n²) behaviour. "
+                   "Use grouping, hashing, or itertools to achieve O(n) complexity.",
+    },
+    "string_concat_in_loop": {
+        "pci_dss": ["6.2.4 - Address coding vulnerabilities"],
+        "owasp": ["A04:2021 - Insecure Design (memory inefficiency)"],
+        "soc2": ["A1.2 - Processing capacity", "CC7.2 - Monitor system components"],
+        "nist": ["SA-15 - Development process", "SC-5 - Resource availability"],
+        "gsf": ["SCI - Software Carbon Intensity (reduce allocations)"],
+        "iso25010": ["ISO 25010 - Performance Efficiency / Resource Utilisation"],
+        "summary": "String concatenation in a loop causes O(n²) memory churn. "
+                   "Use StringBuilder (.NET) or str.join (Python) to allocate once.",
+    },
+    "regex_recompile_in_loop": {
+        "pci_dss": ["6.2.4 - Address coding vulnerabilities"],
+        "owasp": ["A04:2021 - Insecure Design"],
+        "soc2": ["A1.2 - Processing capacity", "CC7.2 - System monitoring"],
+        "nist": ["SA-15 - Development process", "SI-2 - Flaw remediation"],
+        "gsf": ["SCI - Software Carbon Intensity"],
+        "iso25010": ["ISO 25010 - Performance Efficiency / Time Behaviour"],
+        "summary": "Regex compiled on every loop iteration. Compile once before the loop "
+                   "and reuse the compiled object to eliminate redundant CPU work.",
+    },
+    "linq_inefficient": {
+        "pci_dss": ["6.2.4 - Address coding vulnerabilities"],
+        "owasp": ["A04:2021 - Insecure Design (inefficient queries)"],
+        "soc2": ["A1.2 - Processing capacity", "CC9.1 - Risk identification"],
+        "nist": ["SA-15 - Development process", "SC-5 - Denial of service protection"],
+        "gsf": ["SCI - Software Carbon Intensity", "Green Software Foundation - Energy Efficiency"],
+        "iso25010": ["ISO 25010 - Performance Efficiency / Time Behaviour"],
+        "finops": ["FinOps - Optimize cloud resource utilisation"],
+        "summary": "Inefficient LINQ pattern materialises data unnecessarily. "
+                   "Use .Any() instead of .Count() > 0; prefer deferred .Where() over .ToList().Where().",
+    },
+    "boxing_in_loop": {
+        "pci_dss": ["6.2.4 - Address coding vulnerabilities"],
+        "owasp": ["A04:2021 - Insecure Design"],
+        "soc2": ["A1.2 - Processing capacity"],
+        "nist": ["SA-15 - Development process"],
+        "gsf": ["SCI - Software Carbon Intensity (reduce GC pressure)"],
+        "iso25010": ["ISO 25010 - Performance Efficiency / Resource Utilisation"],
+        "summary": "Autoboxing in a hot loop creates excessive heap allocation and GC pressure. "
+                   "Use primitive types (int, long) instead of boxed wrappers (Integer, Long).",
+    },
+    "append_build_list": {
+        "pci_dss": ["6.2.4 - Address coding vulnerabilities"],
+        "owasp": ["A04:2021 - Insecure Design"],
+        "soc2": ["A1.2 - Processing capacity"],
+        "nist": ["SA-15 - Development process"],
+        "gsf": ["SCI - Software Carbon Intensity"],
+        "iso25010": ["ISO 25010 - Performance Efficiency / Resource Utilisation"],
+        "summary": "Repeated list appends can be replaced with a list comprehension or "
+                   "generator for cleaner, faster code.",
+    },
 }
 
 # OWASP Top 10 short labels for the badge display
@@ -244,14 +319,18 @@ class ComplianceReporter:
     def generate_dict(self, report: dict[str, Any]) -> dict[str, Any]:
         """Return a compliance summary dict (for JSON reports and the API)."""
         findings = report.get("findings", [])
-        by_framework: dict[str, list[str]] = {"pci_dss": [], "owasp": [], "soc2": [], "nist": []}
+        mode = report.get("mode", "full")
+        is_efficiency = "efficiency" in (mode or "")
+
+        all_fws = ["pci_dss", "owasp", "soc2", "nist", "gsf", "iso25010", "finops"]
+        by_framework: dict[str, list[str]] = {fw: [] for fw in all_fws}
         coverage: list[dict] = []
 
         for f in findings:
             cat = f.get("category", "other")
             mapping = COMPLIANCE_MAP.get(cat, COMPLIANCE_MAP["other"])
             refs: dict[str, list[str]] = {}
-            for fw in ("pci_dss", "owasp", "soc2", "nist"):
+            for fw in all_fws:
                 controls = mapping.get(fw, [])
                 refs[fw] = controls
                 for c in controls:
@@ -265,18 +344,37 @@ class ComplianceReporter:
                 "location": f.get("location", {}).get("file"),
                 "compliance_refs": refs,
                 "summary": mapping.get("summary", ""),
+                # Efficiency-specific fields for the report
+                "speedup_x": (f.get("benchmark") or {}).get("speedup_x"),
+                "annual_dollars": (f.get("savings") or {}).get("annual_dollars"),
+                "annual_co2_grams": (f.get("savings") or {}).get("annual_co2_grams"),
             })
 
-        return {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "mode": report.get("mode"),
-            "totals": {
+        # Totals: show mission-appropriate fields
+        if is_efficiency:
+            totals = {
+                "scanned": report.get("scanned", 0),
+                "verified": report.get("verified", 0),
+                "failed": report.get("failed", 0),
+                "total_annual_dollars": report.get("total_annual_dollars", 0),
+                "total_annual_co2_grams": report.get("total_annual_co2_grams", 0),
+            }
+        else:
+            totals = {
                 "scanned": report.get("scanned", 0),
                 "exploited": report.get("exploited", 0),
                 "patched": report.get("patched", 0),
                 "validated": report.get("validated", 0),
                 "failed": report.get("failed", 0),
-            },
+            }
+
+        # Strip empty framework keys from the output
+        by_framework = {k: v for k, v in by_framework.items() if v}
+
+        return {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "mode": mode,
+            "totals": totals,
             "framework_controls_triggered": by_framework,
             "findings": coverage,
         }
@@ -352,13 +450,26 @@ class ComplianceReporter:
 </html>"""
 
     def _summary_cards(self, report: dict) -> str:
-        metrics = [
-            ("Scanned", report.get("scanned", 0), "#34495e"),
-            ("Exploited", report.get("exploited", 0), "#e67e22"),
-            ("Patched", report.get("patched", 0), "#2980b9"),
-            ("Validated", report.get("validated", 0), "#27ae60"),
-            ("Failed", report.get("failed", 0), "#c0392b"),
-        ]
+        mode = report.get("mode", "full")
+        is_efficiency = "efficiency" in mode
+        if is_efficiency:
+            dollars = report.get("total_annual_dollars", 0) or 0
+            co2     = report.get("total_annual_co2_grams", 0) or 0
+            metrics = [
+                ("Scanned",           report.get("scanned", 0),   "#34495e"),
+                ("Verified",          report.get("verified", 0),   "#27ae60"),
+                ("Failed",            report.get("failed", 0),     "#c0392b"),
+                ("$/yr Saved",        f"${dollars:,.2f}",          "#2ecc71"),
+                ("gCO₂/yr Avoided",   f"{int(co2):,}",            "#1abc9c"),
+            ]
+        else:
+            metrics = [
+                ("Scanned",   report.get("scanned", 0),    "#34495e"),
+                ("Exploited", report.get("exploited", 0),  "#e67e22"),
+                ("Patched",   report.get("patched", 0),    "#2980b9"),
+                ("Validated", report.get("validated", 0),  "#27ae60"),
+                ("Failed",    report.get("failed", 0),     "#c0392b"),
+            ]
         cards = "".join(
             f'<div class="card"><div class="num" style="color:{color}">{n}</div>'
             f'<div class="lbl">{label}</div></div>'
@@ -367,9 +478,15 @@ class ComplianceReporter:
         return f'<div class="cards">{cards}</div>'
 
     def _framework_table(self, findings: list[dict]) -> str:
-        fw_controls: dict[str, set[str]] = {
-            "pci_dss": set(), "owasp": set(), "soc2": set(), "nist": set(),
-        }
+        is_efficiency = any(
+            f.get("category", "") in ("linear_search_in_loop", "nested_loop_same_iterable",
+                "string_concat_in_loop", "regex_recompile_in_loop", "linq_inefficient",
+                "boxing_in_loop", "append_build_list")
+            for f in findings
+        )
+        base_fws = ["pci_dss", "owasp", "soc2", "nist"]
+        extra_fws = ["gsf", "iso25010", "finops"] if is_efficiency else []
+        fw_controls: dict[str, set[str]] = {fw: set() for fw in base_fws + extra_fws}
         for f in findings:
             cat = f.get("category", "other")
             mapping = COMPLIANCE_MAP.get(cat, COMPLIANCE_MAP["other"])
@@ -377,10 +494,18 @@ class ComplianceReporter:
                 for ctrl in mapping.get(fw, []):
                     fw_controls[fw].add(ctrl)
 
-        labels = {"pci_dss": "PCI-DSS", "owasp": "OWASP Top 10", "soc2": "SOC 2", "nist": "NIST 800-53"}
+        labels = {
+            "pci_dss":  "PCI-DSS",
+            "owasp":    "OWASP Top 10",
+            "soc2":     "SOC 2",
+            "nist":     "NIST 800-53",
+            "gsf":      "Green Software Foundation",
+            "iso25010": "ISO 25010 (Performance Efficiency)",
+            "finops":   "FinOps / Cloud Cost",
+        }
         rows = ""
         for fw, label in labels.items():
-            controls = sorted(fw_controls[fw])
+            controls = sorted(fw_controls.get(fw, set()))
             if not controls:
                 continue
             items = "".join(f"<li><code>{html.escape(c)}</code></li>" for c in controls)
