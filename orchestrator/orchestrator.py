@@ -87,6 +87,8 @@ class SecurityBrain:
         github_repo_slug: str | None = None,
         github_token: str | None = None,
         github_base_branch: str = "main",
+        skip_hypothesis: bool = False,    # skip chain analysis (saves 1 LLM call)
+        max_exploit_retries: int = 3,     # attacker retries per finding
     ):
         self.repo_root = repo_root.resolve()
         self.target_endpoint = target_endpoint
@@ -118,9 +120,10 @@ class SecurityBrain:
             # `docker` binary doesn't blow up scan-only or subprocess-mode runs.
             self.sandbox = runner if runner is not None else SandboxRunner()
             self.deployer = deployer or NullTargetDeployer()
-            self.attacker = AttackerAgent(self.llm, self.sandbox)
+            self.attacker = AttackerAgent(self.llm, self.sandbox, max_retries=max_exploit_retries)
             self.healer = HealerAgent(self.llm)
             self.hypothesis = HypothesisAgent(self.llm)
+            self.skip_hypothesis = skip_hypothesis
             self.validator = ValidatorAgent(
                 self.llm, self.sandbox, test_command=test_command, deployer=self.deployer
             )
@@ -163,7 +166,7 @@ class SecurityBrain:
         # very first exploit needs an already-running target.
         if not self.scan_only and not isinstance(self.deployer, NullTargetDeployer):
             self._emit(AGENT_START, "deployer: starting target service", agent="deployer")
-            ok = self.deployer.reload() and self.deployer.wait_ready(timeout_s=30)
+            ok = self.deployer.reload() and self.deployer.wait_ready(timeout_s=90)
             self._emit(
                 AGENT_DONE,
                 f"deployer: {'target ready' if ok else 'target failed to start'}",
@@ -208,9 +211,8 @@ class SecurityBrain:
         )
 
         # Run hypothesis analysis to identify cross-finding attack chains.
-        # This runs before the per-finding exploit loop so the chains are visible
-        # in events and the report even if some individual exploits fail.
-        if not self.scan_only and findings:
+        # Skippable via skip_hypothesis=True for demo/speed mode (saves 60-90s LLM call).
+        if not self.scan_only and findings and not getattr(self, "skip_hypothesis", False):
             try:
                 self._emit(AGENT_START, "hypothesis: analyzing attack chains", agent="hypothesis")
                 chains = self.hypothesis.run(findings, ctx)

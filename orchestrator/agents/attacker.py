@@ -86,15 +86,16 @@ CATEGORY_HINTS: dict[VulnCategory, str] = {
 class AttackerAgent(Agent):
     name = "attacker"
 
-    def __init__(self, llm: LLMClient, sandbox: SandboxRunner):
+    def __init__(self, llm: LLMClient, sandbox: SandboxRunner, max_retries: int = MAX_EXPLOIT_RETRIES):
         super().__init__(llm)
         self.sandbox = sandbox
+        self.max_retries = max_retries
 
     def run(self, vuln: Vulnerability, ctx: AgentContext) -> Vulnerability:
         prior_attempts: list[dict] = []
         exploit: Exploit | None = None
 
-        for attempt in range(MAX_EXPLOIT_RETRIES):
+        for attempt in range(self.max_retries):
             spec = self._generate_exploit(vuln, ctx, prior_attempts=prior_attempts)
             exploit = Exploit(
                 category=vuln.category,
@@ -120,7 +121,7 @@ class AttackerAgent(Agent):
 
             log.info(
                 "attacker: attempt %d/%d failed (output=%r); retrying with failure context",
-                attempt + 1, MAX_EXPLOIT_RETRIES, exploit.actual_signal[:80] if exploit.actual_signal else "",
+                attempt + 1, self.max_retries, exploit.actual_signal[:80] if exploit.actual_signal else "",
             )
             prior_attempts.append({
                 "attempt": attempt + 1,
@@ -132,7 +133,7 @@ class AttackerAgent(Agent):
         vuln.exploit = exploit
         vuln.exploitability = 1.0 if exploit.succeeded else 0.1
         vuln.status = FindingStatus.EXPLOITED if exploit.succeeded else FindingStatus.DISCOVERED
-        attempts_note = f" (attempt {len(prior_attempts) + 1}/{MAX_EXPLOIT_RETRIES})" if prior_attempts else ""
+        attempts_note = f" (attempt {len(prior_attempts) + 1}/{self.max_retries})" if prior_attempts else ""
         vuln.notes.append(
             f"attacker: {'PoC succeeded' if exploit.succeeded else 'PoC did not reproduce'}"
             f"{attempts_note} (category={vuln.category.value})"

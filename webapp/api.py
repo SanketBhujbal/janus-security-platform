@@ -606,11 +606,13 @@ async def start_security_dotnet_demo() -> dict[str, Any]:
     params = ScanParams(
         repo=target_src,
         mode="full",
-        min_severity=Severity.MEDIUM,
-        max_findings=4,
+        min_severity=Severity.MEDIUM,      # MEDIUM+ → all 4 findings
+        max_findings=4,                    # 4 findings → 3 validated + 1 failed
         target_endpoint=origin,
         health_url=f"{origin}/health",
         test_command=["pytest", "tests/", "-q", "--tb=short"],
+        skip_hypothesis=True,              # saves 60-90s — chain analysis not needed for demo
+        max_exploit_retries=1,             # exploits work on first try; 1 retry = no waste
     )
     runner = _mgr().create(params)
     return {"scan_id": runner.scan_id, "status": runner.status,
@@ -640,8 +642,8 @@ async def start_efficiency_dotnet_demo() -> dict[str, Any]:
         repo=target_src,
         mode="efficiency",
         min_severity=Severity.MEDIUM,
-        max_findings=3,
-        max_candidates=2,
+        max_findings=3,                # 3 findings: 2 verified + 1 failed
+        max_candidates=1,              # 1 candidate = shorter LLM output = faster
         calls_per_year=500_000_000,
         cpu_cost_per_hour_usd=0.272,
         grid_region="eu",
