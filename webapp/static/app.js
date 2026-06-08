@@ -377,6 +377,21 @@ async function startScan(ev) {
     }
 }
 
+// Auto-detect the GitHub repo slug from the repo path's git remote and
+// pre-fill the GitHub repo slug field in the PR integration panel.
+async function autoDetectGithubSlug(repo) {
+    try {
+        const r = await fetch(`/api/repo/github-slug?repo=${encodeURIComponent(repo)}`);
+        if (!r.ok) return;
+        const d = await r.json();
+        if (d.slug && $("githubRepoSlug")) {
+            $("githubRepoSlug").value = d.slug;
+            $("githubRepoSlug").style.borderColor = "var(--ok)";
+            setTimeout(() => { if ($("githubRepoSlug")) $("githubRepoSlug").style.borderColor = ""; }, 2000);
+        }
+    } catch (_) {}
+}
+
 // Assemble the /api/scans body, including efficiency savings, profile, PR
 // provider, and CI-guard fields where relevant.
 function buildScanPayload(repo) {
@@ -921,10 +936,12 @@ document.addEventListener("DOMContentLoaded", () => {
     $("scanForm").addEventListener("submit", startScan);
     $("mode").addEventListener("change", onModeChange);
     if ($("prProvider")) $("prProvider").addEventListener("change", onPrProviderChange);
-    // Refresh the lifetime card when the repo path changes in an efficiency mode.
-    $("repoPath").addEventListener("change", () => {
+    // When repo path changes: refresh lifetime card + auto-detect GitHub slug.
+    $("repoPath").addEventListener("change", async () => {
+        const repo = $("repoPath").value.trim();
         const m = $("mode").value;
         if (m === "efficiency" || m === "efficiency-profile" || m === "efficiency-ci-guard") loadLifetimeSavings();
+        if (repo) autoDetectGithubSlug(repo);
     });
     $("demoDotnetBtn").addEventListener("click", startSecurityDotnetDemo);
     $("efficiencyBtn").addEventListener("click", startEfficiencyDotnetDemo);

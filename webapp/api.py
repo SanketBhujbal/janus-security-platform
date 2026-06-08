@@ -603,20 +603,26 @@ async def start_security_dotnet_demo() -> dict[str, Any]:
         log.info("dotnet security demo: restored Program.cs from .original in %s", target_src)
 
     origin = "http://localhost:8080"
+    gh_token = os.environ.get("GITHUB_TOKEN")
     params = ScanParams(
         repo=target_src,
         mode="full",
-        min_severity=Severity.MEDIUM,      # MEDIUM+ → all 4 findings
-        max_findings=4,                    # 4 findings → 3 validated + 1 failed
+        min_severity=Severity.MEDIUM,
+        max_findings=4,
         target_endpoint=origin,
         health_url=f"{origin}/health",
         test_command=["pytest", "tests/", "-q", "--tb=short"],
-        skip_hypothesis=True,              # saves 60-90s — chain analysis not needed for demo
-        max_exploit_retries=1,             # exploits work on first try; 1 retry = no waste
+        skip_hypothesis=True,
+        max_exploit_retries=1,
+        # Auto-wire PR: creates a PR on the demo repo after validated findings
+        github_repo_slug="SanketBhujbal/janus-demo-security-dotnet" if gh_token else None,
+        github_token=gh_token,
+        github_base_branch="main",
     )
     runner = _mgr().create(params)
     return {"scan_id": runner.scan_id, "status": runner.status,
-            "mode": "demo-security-dotnet", "target": str(target_src)}
+            "mode": "demo-security-dotnet", "target": str(target_src),
+            "pr_enabled": bool(gh_token)}
 
 
 @app.post("/api/scans/demo-efficiency-dotnet")
@@ -638,15 +644,20 @@ async def start_efficiency_dotnet_demo() -> dict[str, Any]:
     if shutil.which("dotnet") is None:
         raise HTTPException(500, "dotnet SDK not found on PATH")
 
+    gh_token = os.environ.get("GITHUB_TOKEN")
     params = ScanParams(
         repo=target_src,
         mode="efficiency",
         min_severity=Severity.MEDIUM,
-        max_findings=3,                # 3 findings: 2 verified + 1 failed
-        max_candidates=1,              # 1 candidate = shorter LLM output = faster
+        max_findings=3,
+        max_candidates=1,
         calls_per_year=500_000_000,
         cpu_cost_per_hour_usd=0.272,
         grid_region="eu",
+        # Auto-wire PR: creates a PR on the demo repo after verified findings
+        github_repo_slug="SanketBhujbal/janus-demo-efficiency-dotnet" if gh_token else None,
+        github_token=gh_token,
+        github_base_branch="main",
     )
     runner = _mgr().create(params)
     return {"scan_id": runner.scan_id, "status": runner.status,
@@ -678,6 +689,33 @@ async def efficiency_history(repo: str) -> dict[str, Any]:
         raise HTTPException(400, f"repo path does not exist: {repo_path}")
     from orchestrator.perf_history import PerfHistory
     return PerfHistory(repo_path.resolve()).as_dict()
+
+
+@app.get("/api/repo/github-slug")
+async def detect_github_slug(repo: str) -> dict[str, Any]:
+    """Auto-detect the GitHub repo slug from a local git repo's remote URL.
+    Used by the UI to pre-fill the PR integration field when the user
+    enters a repository path — no manual copy-pasting needed.
+    """
+    import subprocess, re
+    repo_path = Path(repo).expanduser()
+    if not repo_path.exists():
+        return {"slug": None, "error": "path not found"}
+    try:
+        r = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            cwd=str(repo_path), capture_output=True, text=True, timeout=5,
+        )
+        url = r.stdout.strip()
+        if not url:
+            return {"slug": None, "error": "no git remote named origin"}
+        # Handles: https://github.com/owner/repo(.git) and git@github.com:owner/repo(.git)
+        m = re.search(r"github\.com[:/]([^/]+/[^/\s]+?)(?:\.git)?$", url)
+        if not m:
+            return {"slug": None, "error": f"remote is not GitHub: {url}"}
+        return {"slug": m.group(1), "remote_url": url}
+    except Exception as e:
+        return {"slug": None, "error": str(e)}
 
 
 @app.get("/api/health")
