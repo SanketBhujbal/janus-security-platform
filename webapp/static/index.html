@@ -3,42 +3,45 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Agentic Security Platform</title>
+    <title>JANUS — Agentic Security &amp; Efficiency Platform</title>
     <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
     <header class="topbar">
         <div class="brand">
             <span class="logo">&#x25C8;</span>
-            <h1>Agentic Security Platform</h1>
-            <span class="tag">payments-domain SAST + autonomous PoC + healing</span>
+            <h1>JANUS</h1>
+            <span class="tag">Agentic Security &amp; Efficiency Platform</span>
+        </div>
+        <div class="header-badges">
+            <span class="badge badge-security" title="Security mission: SAST → exploit → patch → validate">&#x1F512; Security</span>
+            <span class="badge badge-efficiency" title="Efficiency mission: profile → refactor → verify → savings">&#x26A1; Efficiency</span>
+            <span class="badge badge-langs" title="Python · Java · .NET">Python &middot; Java &middot; .NET</span>
         </div>
         <div class="status-pill" id="statusPill">idle</div>
     </header>
 
     <main class="layout">
         <section class="card config">
-            <h2>1. Configure scan</h2>
+            <h2>Configure</h2>
             <form id="scanForm">
                 <label>Repository path
-                    <input type="text" id="repoPath" placeholder="C:\path\to\your\product"
+                    <input type="text" id="repoPath" placeholder="C:\path\to\your\repo"
                            required autocomplete="off" />
                 </label>
                 <div class="row">
-                    <label>Mode
+                    <label>Mission &amp; mode
                         <select id="mode">
-                            <optgroup label="— Security scan —">
-                                <option value="scan-only" selected>Scan only (no Docker, no LLM)</option>
-                                <option value="full">Full loop (attack &rarr; patch &rarr; validate)</option>
-                            </optgroup>
-                            <optgroup label="— Import from external scanner —">
+                            <optgroup label="&#x1F6E1;  Security">
+                                <option value="scan-only" selected>Scan only (Semgrep, no LLM)</option>
+                                        <option value="full">Full loop — exploit &rarr; patch &rarr; validate</option>
                                 <option value="import-sarif">Import SARIF (Checkmarx / CodeQL / Snyk / any)</option>
                                 <option value="import-checkmarx">Import Checkmarx One (live API)</option>
                             </optgroup>
-                            <optgroup label="— Efficiency —">
-                                <option value="efficiency-profile">Efficiency: Profile only</option>
-                                <option value="efficiency">Efficiency: Full loop (refactor &rarr; verify)</option>
-                                <option value="efficiency-ci-guard">Efficiency: CI guard (diff only)</option>
+                            <optgroup label="&#x26A1;  Efficiency">
+                                <option value="efficiency-profile">Profile only (scan, no LLM)</option>
+                                <option value="efficiency">Full loop — refactor &rarr; verify &rarr; savings</option>
+                                <option value="efficiency-ci-guard">CI guard — diff only (PR gate)</option>
                             </optgroup>
                         </select>
                     </label>
@@ -56,17 +59,17 @@
                     </label>
                 </div>
 
-                <!-- SARIF import fields — shown only when import-sarif is selected -->
+                <!-- SARIF import fields -->
                 <div id="sarifFields" class="import-fields" style="display:none">
                     <label>SARIF file
                         <input type="file" id="sarifFile" accept=".sarif,.json" />
                     </label>
-                    <p class="dim">Upload SARIF output from Checkmarx, CodeQL, GitHub Advanced Security,
-                    Semgrep, Snyk, or any SARIF 2.1.0-compatible scanner. The pipeline will prove which
-                    findings are genuinely exploitable and auto-patch them.</p>
+                    <p class="dim">Upload SARIF 2.1.0 output from any scanner — Checkmarx, CodeQL, GitHub Advanced
+                    Security, Semgrep, Snyk. JANUS will prove which findings are genuinely exploitable and
+                    auto-patch them.</p>
                 </div>
 
-                <!-- Checkmarx One API fields — shown only when import-checkmarx is selected -->
+                <!-- Checkmarx One fields -->
                 <div id="checkmarxFields" class="import-fields" style="display:none">
                     <div class="row">
                         <label>Checkmarx One URL
@@ -87,47 +90,51 @@
                             <input type="text" id="cxScanId" placeholder="UUID of the Checkmarx scan" autocomplete="off" />
                         </label>
                     </div>
-                    <p class="dim">The pipeline will authenticate to Checkmarx One, pull all findings for
-                    the specified scan, then prove which are exploitable and generate verified patches.</p>
+                    <p class="dim">JANUS connects to Checkmarx One, pulls findings for the scan, then runs the
+                    full exploit &rarr; patch &rarr; validate pipeline.</p>
                 </div>
-                <!-- Efficiency savings + profile fields — shown for efficiency modes (P2, P7) -->
+
+                <!-- Efficiency savings + profile fields -->
                 <div id="efficiencyFields" class="import-fields" style="display:none">
-                    <h4 class="field-group-title">Savings assumptions</h4>
+                    <h4 class="field-group-title">&#x26A1; Savings assumptions</h4>
                     <div class="row">
                         <label>Calls / year
-                            <input type="number" id="effCallsPerYear" value="3600000" min="1" step="1" />
+                            <input type="number" id="effCallsPerYear" value="3600000" min="1" step="1"
+                                   title="10k/day = 3,600,000 — a conservative payments microservice" />
                         </label>
                         <label>CPU $/hour
                             <input type="number" id="effCpuCost" value="0.10" min="0" step="0.01"
-                                   title="e.g. c6g.2xlarge ≈ $0.272/hr; t3.medium ≈ $0.042/hr" />
+                                   title="c6g.2xlarge ≈ $0.272 · t3.medium ≈ $0.042 · generic ≈ $0.10" />
                         </label>
-                        <label>Grid region
+                        <label>Grid carbon (gCO₂/kWh)
                             <select id="effGridRegion">
                                 <option value="global" selected>Global avg (442 g)</option>
                                 <option value="us">US (369 g)</option>
                                 <option value="eu">EU-27 (251 g)</option>
-                                <option value="france">France (56 g)</option>
-                                <option value="nordics">Nordics (45 g)</option>
+                                <option value="france">France / nuclear (56 g)</option>
+                                <option value="nordics">Nordics / hydro (45 g)</option>
                                 <option value="india">India (632 g)</option>
-                                <option value="aws_us_east">AWS us-east (379 g)</option>
+                                <option value="aws_us_east">AWS us-east-1 (379 g)</option>
                             </select>
                         </label>
                     </div>
-                    <label>Runtime profile JSON (optional)
+                    <label>Runtime profile JSON <span class="dim-inline">(optional — weights savings by real hotness)</span>
                         <textarea id="effProfileJson" rows="3"
-                            placeholder='Paste py-spy/speedscope JSON, or {"process_payment": 50000000} to weight savings by real hotness'></textarea>
+                            placeholder='{"process_payment": 50000000}  or paste py-spy / speedscope JSON'></textarea>
                     </label>
-                    <p class="dim">Savings projections use these assumptions. A runtime profile overrides the
-                    per-function call rate so the $ / CO&#8322; numbers reflect real production hotness.</p>
+                    <p class="dim">JANUS projects $/yr and gCO₂/yr from these assumptions. A runtime profile
+                    (py-spy, speedscope, or a flat function→calls/yr map) overrides the per-function call rate
+                    so the numbers reflect real production hotness.</p>
                 </div>
 
-                <!-- CI guard fields — shown only for efficiency-ci-guard (P5) -->
+                <!-- CI guard fields -->
                 <div id="ciGuardFields" class="import-fields" style="display:none">
+                    <h4 class="field-group-title">&#x1F6A7; CI guard settings</h4>
                     <div class="row">
                         <label>Base ref (diff against)
                             <input type="text" id="ciBaseRef" value="origin/main" autocomplete="off" />
                         </label>
-                        <label>Fail on severity ≥
+                        <label>Fail on severity &ge;
                             <select id="ciFailSeverity">
                                 <option value="critical">Critical</option>
                                 <option value="high" selected>High</option>
@@ -135,16 +142,17 @@
                                 <option value="low">Low</option>
                             </select>
                         </label>
-                        <label>PR number (optional)
-                            <input type="number" id="ciPrNumber" min="1" placeholder="post comment to PR #" />
+                        <label>PR number <span class="dim-inline">(optional)</span>
+                            <input type="number" id="ciPrNumber" min="1" placeholder="post verdict as comment" />
                         </label>
                     </div>
-                    <p class="dim">CI guard scans only files changed vs. the base ref and fails when a new
-                    finding meets the threshold. Point it at a PR number to post the verdict as a comment.</p>
+                    <p class="dim">Scans only files changed vs. the base ref. Fails when any new finding
+                    meets the threshold. Optionally posts the verdict as a GitHub PR review comment.</p>
                 </div>
 
+                <!-- PR integration -->
                 <details class="github-config">
-                    <summary>Pull request integration (optional)</summary>
+                    <summary>&#x1F517; Pull request integration <span class="dim-inline">(optional)</span></summary>
                     <div class="row">
                         <label>Provider
                             <select id="prProvider">
@@ -157,12 +165,12 @@
                         </label>
                     </div>
                     <div id="githubPrFields" class="row">
-                        <label>GitHub repo slug (owner/name)
-                            <input type="text" id="githubRepoSlug" placeholder="e.g. aciworldwide/speedpay"
+                        <label>GitHub repo slug <span class="dim-inline">owner/name</span>
+                            <input type="text" id="githubRepoSlug" placeholder="e.g. SanketBhujbal/janus-security-platform"
                                    autocomplete="off" />
                         </label>
                         <label>GitHub token
-                            <input type="password" id="githubToken" placeholder="ghp_… (or set GITHUB_TOKEN env)"
+                            <input type="password" id="githubToken" placeholder="set GITHUB_TOKEN env var"
                                    autocomplete="off" />
                         </label>
                     </div>
@@ -175,32 +183,34 @@
                         </label>
                         <label>Bitbucket token
                             <input type="password" id="bbToken"
-                                   placeholder="access token, or user:app_password" autocomplete="off" />
+                                   placeholder="access token or user:app_password" autocomplete="off" />
                         </label>
                     </div>
-                    <p class="dim">When filled, JANUS opens a PR automatically after validated/verified findings.</p>
+                    <p class="dim">When set, JANUS opens a PR automatically after validated (security) or
+                    verified (efficiency) findings — with machine-verified evidence in the body.</p>
                 </details>
+
                 <div class="actions">
-                    <button type="submit" id="startBtn" class="btn-primary">Start scan</button>
-                    <button type="button" id="demoDotnetBtn" class="btn-accent"
-                            title="Security mission: full attack&rarr;patch&rarr;validate loop against the seeded ASP.NET Core payments API (needs .NET SDK + Claude Code login)">
-                        Run security demo
+                    <button type="submit" id="startBtn" class="btn-primary">&#x25B6; Start scan</button>
+                    <button type="button" id="demoDotnetBtn" class="btn-accent btn-security"
+                            title="Security demo: full exploit &rarr; patch &rarr; validate loop on the seeded ASP.NET Core payments API">
+                        &#x1F512; Security demo
                     </button>
-                    <button type="button" id="efficiencyBtn" class="btn-accent"
-                            title="Efficiency mission: profile&rarr;refactor&rarr;verify loop on the seeded inefficient target. Reports $ + g-CO&#8322; saved.">
-                        Run efficiency demo
+                    <button type="button" id="efficiencyBtn" class="btn-accent btn-efficiency"
+                            title="Efficiency demo: profile &rarr; refactor &rarr; verify &rarr; savings on the seeded Python target">
+                        &#x26A1; Efficiency demo
                     </button>
-                    <button type="button" id="downloadBtn" class="btn-ghost" disabled>Download report.json</button>
+                    <button type="button" id="downloadBtn" class="btn-ghost" disabled>&#x2193; Report JSON</button>
                     <button type="button" id="complianceBtn" class="btn-ghost" disabled
-                            title="Download the PCI-DSS / OWASP / SOC2 compliance report for the last scan">
-                        Compliance report
+                            title="Download PCI-DSS / OWASP / SOC2 compliance report">
+                        &#x1F4CB; Compliance
                     </button>
                 </div>
             </form>
         </section>
 
         <section class="card kpis">
-            <h2>Summary</h2>
+            <h2>Run summary</h2>
             <div class="kpi-grid">
                 <div class="kpi"><span class="kpi-label">Mode</span><span class="kpi-value" id="kpiMode">&mdash;</span></div>
                 <div class="kpi"><span class="kpi-label">Scanned</span><span class="kpi-value" id="kpiScanned">0</span></div>
@@ -212,7 +222,7 @@
         </section>
 
         <section class="card lifetime-card" id="lifetimeCard" style="display:none">
-            <h2>Lifetime efficiency savings</h2>
+            <h2>&#x26A1; Lifetime efficiency savings</h2>
             <div class="kpi-grid">
                 <div class="kpi"><span class="kpi-label">Verified findings</span><span class="kpi-value" id="ltCount">0</span></div>
                 <div class="kpi"><span class="kpi-label">$/year saved</span><span class="kpi-value ok" id="ltDollars">$0</span></div>
@@ -223,25 +233,25 @@
         </section>
 
         <section class="card progress-card">
-            <h2>2. Live progress</h2>
+            <h2>Live progress</h2>
             <div id="logStream" class="log"></div>
         </section>
 
         <section class="card findings-card">
-            <h2>3. Findings</h2>
+            <h2>Findings</h2>
             <table class="findings">
                 <thead>
                     <tr><th>#</th><th>Severity</th><th>Category</th><th>Location</th><th>Status</th><th></th></tr>
                 </thead>
                 <tbody id="findingsBody"></tbody>
             </table>
-            <div id="findingsEmpty" class="empty">No findings yet. Start a scan above.</div>
+            <div id="findingsEmpty" class="empty">No findings yet — run a scan or demo above.</div>
         </section>
     </main>
 
     <aside class="drawer" id="drawer" aria-hidden="true">
         <div class="drawer-header">
-            <h3 id="drawerTitle">Finding</h3>
+            <h3 id="drawerTitle">Finding detail</h3>
             <button class="btn-ghost" id="drawerClose" aria-label="Close">&times;</button>
         </div>
         <div class="drawer-body" id="drawerBody">
