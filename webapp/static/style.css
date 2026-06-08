@@ -42,10 +42,20 @@ a { color: var(--accent); }
     border-bottom: 1px solid var(--line);
 }
 
-.brand { display: flex; align-items: center; gap: 12px; }
-.brand .logo { color: var(--accent-2); font-size: 22px; }
-.brand h1 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: 0.2px; }
-.brand .tag { color: var(--text-dim); font-size: 12px; margin-left: 8px; }
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand .logo { display: flex; align-items: center; flex-shrink: 0; }
+.brand .logo svg { filter: drop-shadow(0 0 6px rgba(251,191,36,0.35)); }
+.brand h1 {
+    margin: 0;
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    background: linear-gradient(135deg, #ff6b6b 0%, #ffffff 45%, #ffd93d 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.brand .tag { color: var(--text-dim); font-size: 12px; margin-left: 6px; }
 
 .status-pill {
     font-family: var(--mono);
@@ -85,8 +95,14 @@ a { color: var(--accent); }
 /* While a scan is in flight, give the brand a subtle "thinking" pulse on
    the diamond logo too, so users have a second indicator in case the
    status pill is off-screen on small viewports. */
-.brand .logo { transition: opacity 0.3s; }
-body.scan-running .brand .logo { animation: pulse 1.4s ease-in-out infinite; }
+.brand .logo { transition: filter 0.3s; }
+body.scan-running .brand .logo svg {
+    animation: logo-pulse 1.4s ease-in-out infinite;
+}
+@keyframes logo-pulse {
+    0%, 100% { filter: drop-shadow(0 0 6px rgba(251,191,36,0.35)); }
+    50%       { filter: drop-shadow(0 0 14px rgba(251,191,36,0.75)) drop-shadow(0 0 8px rgba(255,107,107,0.5)); }
+}
 @keyframes pulse {
     0%, 100% { opacity: 1; }
     50%      { opacity: 0.45; }

@@ -89,6 +89,8 @@ class ScanParams:
     ci_fail_severity: Severity = Severity.HIGH
     ci_pr_number: int | None = None
     max_candidates: int | None = None   # LLM variants per efficiency finding
+    skip_hypothesis: bool = False        # skip chain analysis (saves 60-90s LLM call)
+    max_exploit_retries: int = 3         # attacker retries per finding (1 = fastest)
     # Import-mode fields ---------------------------------------------------
     sarif_content: str | None = None          # raw SARIF JSON (import-sarif mode)
     checkmarx_url: str | None = None          # e.g. "https://eu.checkmarx.net"
@@ -203,7 +205,8 @@ class ScanRunner:
                 cwd=cwd,
                 env=extra_env,
                 health_url=health_url,
-                startup_seconds=2.0 if command else 0.5,
+                # .NET targets need much longer to compile+start than Python.
+                startup_seconds=20.0 if (command and "dotnet" in (command[0] if command else "")) else (2.0 if command else 0.5),
             )
         else:
             log.warning(
@@ -331,6 +334,8 @@ class ScanRunner:
             github_repo_slug=self.params.github_repo_slug,
             github_token=self.params.github_token,
             github_base_branch=self.params.github_base_branch,
+            skip_hypothesis=self.params.skip_hypothesis,
+            max_exploit_retries=self.params.max_exploit_retries,
         )
 
     def _now(self) -> str:

@@ -9,7 +9,45 @@
 <body>
     <header class="topbar">
         <div class="brand">
-            <span class="logo">&#x25C8;</span>
+            <span class="logo">
+                <svg width="52" height="52" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="JANUS logo">
+                    <defs>
+                        <linearGradient id="jl-sec" x1="0" y1="0" x2="1" y2="1">
+                            <stop offset="0%" stop-color="#ff6b6b"/>
+                            <stop offset="100%" stop-color="#c0392b"/>
+                        </linearGradient>
+                        <linearGradient id="jl-eff" x1="1" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#ffd93d"/>
+                            <stop offset="100%" stop-color="#e67e22"/>
+                        </linearGradient>
+                        <filter id="jl-glow" x="-30%" y="-30%" width="160%" height="160%">
+                            <feGaussianBlur in="SourceAlpha" stdDeviation="2.5" result="blur"/>
+                            <feFlood flood-color="#fbbf24" flood-opacity="0.45" result="col"/>
+                            <feComposite in="col" in2="blur" operator="in" result="glow"/>
+                            <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+                        </filter>
+                        <filter id="jl-sec-glow" x="-30%" y="-30%" width="160%" height="160%">
+                            <feGaussianBlur in="SourceAlpha" stdDeviation="2" result="blur"/>
+                            <feFlood flood-color="#ff6b6b" flood-opacity="0.35" result="col"/>
+                            <feComposite in="col" in2="blur" operator="in" result="glow"/>
+                            <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+                        </filter>
+                    </defs>
+                    <path d="M24 3 L3 24 L24 45 Z" fill="url(#jl-sec)" filter="url(#jl-sec-glow)"/>
+                    <path d="M24 3 L45 24 L24 45 Z" fill="url(#jl-eff)" filter="url(#jl-glow)"/>
+                    <path d="M24 3 L3 24 L24 45 L45 24 Z" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="0.8"/>
+                    <path d="M13 25 C13 17 21 17 21 25" fill="none" stroke="rgba(255,255,255,0.95)" stroke-width="2.2" stroke-linecap="round"/>
+                    <rect x="11" y="24" width="11" height="9" rx="2" fill="rgba(255,255,255,0.95)"/>
+                    <circle cx="16.5" cy="27.5" r="1.8" fill="#c0392b"/>
+                    <rect x="15.7" y="27.5" width="1.6" height="3" rx="0.5" fill="#c0392b"/>
+                    <path d="M31 14 L27 24 L30 24 L26 34 L37 21 L33 21 Z" fill="rgba(255,255,255,0.95)"/>
+                    <line x1="24" y1="3" x2="24" y2="45" stroke="rgba(255,255,255,0.5)" stroke-width="1.5" stroke-linecap="round"/>
+                    <circle cx="24" cy="3"  r="2.2" fill="rgba(255,255,255,0.8)"/>
+                    <circle cx="24" cy="45" r="2.2" fill="rgba(255,255,255,0.6)"/>
+                    <circle cx="3"  cy="24" r="1.5" fill="rgba(255,107,107,0.7)"/>
+                    <circle cx="45" cy="24" r="1.5" fill="rgba(255,217,61,0.8)"/>
+                </svg>
+            </span>
             <h1>JANUS</h1>
             <span class="tag">Agentic Security &amp; Efficiency Platform</span>
         </div>

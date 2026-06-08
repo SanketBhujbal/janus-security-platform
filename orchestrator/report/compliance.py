@@ -297,7 +297,7 @@ class ComplianceReporter:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Compliance Report — Agentic Security Platform</title>
+<title>JANUS — Compliance Report</title>
 <style>
   body {{ font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
          margin:0; padding:24px; background:#f5f6fa; color:#2c3e50; }}
@@ -328,7 +328,7 @@ class ComplianceReporter:
 </style>
 </head>
 <body>
-<h1>Agentic Security Platform — Compliance Report</h1>
+<h1>JANUS — Compliance Report</h1>
 <div class="ts">Generated {html.escape(now)}</div>
 
 {summary_cards}

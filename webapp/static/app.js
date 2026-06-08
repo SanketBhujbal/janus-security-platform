@@ -64,9 +64,16 @@ function renderFindings() {
     }
 }
 
+function displayMode(mode) {
+    // Map internal mode names to human-readable labels for the KPI tile.
+    if (mode === "full" || mode === "demo-security-dotnet" || mode === "demo-security") return "security";
+    if (mode === "import-sarif" || mode === "import-checkmarx") return "import";
+    return mode || "—";
+}
+
 function updateKpis(summary) {
     if (!summary) return;
-    $("kpiMode").textContent      = summary.mode || "—";
+    $("kpiMode").textContent      = displayMode(summary.mode);
     $("kpiScanned").textContent   = summary.scanned ?? 0;
     if (summary.mode === "efficiency-ci-guard") {
         const counts = summary.counts || {};
@@ -104,7 +111,7 @@ function handleEvent(event) {
     const d = event.data || {};
     switch (event.type) {
         case "scan_start":
-            $("kpiMode").textContent = d.mode || "—";
+            $("kpiMode").textContent = displayMode(d.mode);
             break;
         case "scan_findings_prioritized":
             $("kpiScanned").textContent = d.count ?? 0;
