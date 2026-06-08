@@ -422,54 +422,44 @@ async def get_compliance_report(scan_id: str, format: str = "json") -> Any:
     ?format=html  →  self-contained HTML report (for browser / email)
     ?format=json  →  machine-readable compliance dict (default)
     """
-    # Resolve the repo path from the scan so we can find .security_workdir
+    # Resolution order — always prefer the in-memory runner report for this
+    # specific scan_id so concurrent scans on the same repo don't cross-contaminate
+    # each other's compliance output (multiple runs clobber the same report.json).
     runner = _mgr().get(scan_id)
-    repo: Path | None = None
-    if runner is not None:
-        repo = runner.params.repo
-    if repo is None:
+    report_data: dict | None = None
+
+    if runner is not None and runner.report is not None:
+        report_data = runner.report.to_dict()
+    else:
         stored = _mgr().get_stored(scan_id)
-        if stored is not None and stored.repo:
+        if stored is not None and stored.report is not None:
+            report_data = stored.report
+
+    # Fallback to the on-disk report.json (legacy path / restart recovery)
+    if report_data is None:
+        repo: Path | None = None
+        if runner is not None:
+            repo = runner.params.repo
+        if repo is None and stored is not None and stored.repo:
             repo = Path(stored.repo)
-    if repo is None:
-        raise HTTPException(404, "scan not found")
+        if repo is None:
+            raise HTTPException(404, "scan not found")
+        report_path = repo / ".security_workdir" / "report.json"
+        if not report_path.exists():
+            raise HTTPException(409, "report not ready yet — scan may still be running")
+        report_data = json.loads(report_path.read_text(encoding="utf-8"))
 
-    workdir = repo / ".security_workdir"
-
-    report_path = workdir / "report.json"
-    if not report_path.exists():
-        raise HTTPException(409, "report not ready yet — scan may still be running")
-
-    report_data = json.loads(report_path.read_text(encoding="utf-8"))
-
-    if format == "html":
-        html_path = workdir / "compliance_report.html"
-        if html_path.exists():
-            return Response(
-                content=html_path.read_text(encoding="utf-8"),
-                media_type="text/html",
-                headers={"Content-Disposition": f'attachment; filename="compliance-{scan_id}.html"'},
-            )
-        # File not pre-generated — build it on the fly from report.json.
-        try:
-            from orchestrator.report.compliance import ComplianceReporter
-            html_content = ComplianceReporter()._render(report_data)
+    try:
+        from orchestrator.report.compliance import ComplianceReporter
+        reporter = ComplianceReporter()
+        if format == "html":
+            html_content = reporter._render(report_data)
             return Response(
                 content=html_content,
                 media_type="text/html",
                 headers={"Content-Disposition": f'attachment; filename="compliance-{scan_id}.html"'},
             )
-        except Exception as e:
-            raise HTTPException(500, f"compliance HTML generation failed: {e}")
-
-    # JSON format (default)
-    json_path = workdir / "compliance.json"
-    if json_path.exists():
-        return JSONResponse(content=json.loads(json_path.read_text(encoding="utf-8")))
-
-    try:
-        from orchestrator.report.compliance import ComplianceReporter
-        return JSONResponse(content=ComplianceReporter().generate_dict(report_data))
+        return JSONResponse(content=reporter.generate_dict(report_data))
     except Exception as e:
         raise HTTPException(500, f"compliance generation failed: {e}")
 
