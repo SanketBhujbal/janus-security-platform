@@ -82,6 +82,7 @@ class EfficiencyBrain:
         bitbucket_token: str | None = None,
         profile_hints: dict | None = None,     # runtime profile import (P7)
         history_enabled: bool = True,          # cumulative savings history (P8)
+        max_candidates: int | None = None,     # LLM refactor variants per finding (None=default)
     ):
         self.repo_root = repo_root.resolve()
         self.rules_dir = rules_dir
@@ -95,7 +96,7 @@ class EfficiencyBrain:
             self.verifier = None
         else:
             assert llm is not None, "EfficiencyBrain needs an LLM unless scan_only=True"
-            self.refactor = RefactorAgent(llm)
+            self.refactor = RefactorAgent(llm, max_candidates=max_candidates)
             self.verifier = VerifierAgent(llm, runner, savings_config=self.savings_config)
         self.max_findings_per_run = max_findings_per_run
         self._emit_raw = on_event or noop_emitter

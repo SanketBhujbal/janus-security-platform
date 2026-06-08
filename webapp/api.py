@@ -140,23 +140,41 @@ async def start_scan(req: StartScanRequest) -> dict[str, Any]:
 
 @app.post("/api/scans/demo-efficiency")
 async def start_efficiency_demo() -> dict[str, Any]:
-    # One-click EFFICIENCY-mode demo against the seeded inefficient Python target.
-    # Same agentic loop, different signal: profile -> refactor -> verify -> savings.
-    root = Path(__file__).resolve().parents[1]
-    target_src = root / "sandbox" / "target-perf"
-    if not target_src.exists():
-        raise HTTPException(500, "seeded perf target missing")
+    """One-click efficiency demo — profile → refactor → verify → savings.
+
+    Uses the purpose-built janus-demo-efficiency repo (payment_processor.py)
+    with 4 patterns sized for 100-300× speedups and impressive $/yr numbers.
+    Falls back to the internal sandbox/target-perf if the repo isn't cloned.
+    """
+    # Primary: dedicated demo repo with business-contextual function names
+    primary = Path(r"C:\Users\bhujbalsa\janus-demo-efficiency")
+    # Fallback: original internal seeded target
+    fallback = Path(__file__).resolve().parents[1] / "sandbox" / "target-perf"
+
+    if primary.exists() and (primary / "payment_processor.py").exists():
+        target_src = primary
+    elif fallback.exists():
+        target_src = fallback
+    else:
+        raise HTTPException(500, "efficiency demo target missing")
+
     params = ScanParams(
         repo=target_src,
         mode="efficiency",
         min_severity=Severity.MEDIUM,
-        max_findings=10,
+        max_findings=3,       # verified | verified | failed
+        max_candidates=2,     # 2 LLM variants per finding = ~35% faster than 3
+        # Impressive demo savings: 500M calls/yr at c6g.2xlarge price, EU grid
+        calls_per_year=500_000_000,
+        cpu_cost_per_hour_usd=0.272,
+        grid_region="eu",
     )
     runner = _mgr().create(params)
     return {
         "scan_id": runner.scan_id,
         "status": runner.status,
         "mode": "demo-efficiency",
+        "target": str(target_src),
     }
 
 
@@ -222,6 +240,53 @@ class DotnetDemoRequest(BaseModel):
     github_repo_slug: str | None = None
     github_token: str | None = None
     github_base_branch: str = "main"
+
+
+@app.post("/api/scans/demo-security")
+async def start_security_demo() -> dict[str, Any]:
+    """One-click security demo — exploit → patch → validate.
+
+    Uses the purpose-built janus-demo-security repo. Resets app.py from
+    .original before each run so the demo always starts from the clean
+    vulnerable baseline. Falls back to sandbox/target-api if repo not cloned.
+    """
+    import shutil
+    # Primary: dedicated demo repo
+    primary = Path(r"C:\Users\bhujbalsa\janus-demo-security")
+    # Fallback: original internal sandbox
+    root = Path(__file__).resolve().parents[1]
+    fallback = root / "sandbox" / "target-api"
+
+    if primary.exists() and (primary / "app.py").exists():
+        target_src = primary
+    elif fallback.exists():
+        target_src = fallback
+    else:
+        raise HTTPException(500, "security demo target missing")
+
+    # Reset app.py from .original so each run starts from the canonical
+    # vulnerable state (healer patches accumulate across runs otherwise).
+    original = target_src / "app.py.original"
+    live = target_src / "app.py"
+    if original.exists():
+        shutil.copyfile(original, live)
+        log.info("security demo: restored app.py from .original in %s", target_src)
+
+    params = ScanParams(
+        repo=target_src,
+        mode="full",
+        min_severity=Severity.HIGH,    # HIGH only = 1-2 findings = fast demo
+        max_findings=2,
+        target_endpoint="http://localhost:8080",
+        health_url="http://localhost:8080/health",
+    )
+    runner = _mgr().create(params)
+    return {
+        "scan_id": runner.scan_id,
+        "status": runner.status,
+        "mode": "demo-security",
+        "target": str(target_src),
+    }
 
 
 @app.post("/api/scans/demo-dotnet")
@@ -518,6 +583,82 @@ async def import_checkmarx(req: CheckmarxImportRequest) -> dict:
     )
     runner = _mgr().create(params)
     return {"scan_id": runner.scan_id, "status": runner.status, "mode": "import-checkmarx"}
+
+
+@app.post("/api/scans/demo-security-dotnet")
+async def start_security_dotnet_demo() -> dict[str, Any]:
+    """One-click .NET security demo — exploit → patch → validate on ASP.NET Core target.
+    4 findings: 3 VALIDATED + 1 FAILED (idempotency patch breaks existing test).
+    """
+    import shutil
+    primary  = Path(r"C:\Users\bhujbalsa\janus-demo-security-dotnet")
+    fallback = Path(__file__).resolve().parents[1] / "sandbox" / "target-dotnet-api"
+
+    if primary.exists() and (primary / "janus-demo-security-dotnet.csproj").exists():
+        target_src = primary
+        csproj_name = "janus-demo-security-dotnet.csproj"
+    elif fallback.exists():
+        target_src = fallback
+        csproj_name = "target-dotnet-api.csproj"
+    else:
+        raise HTTPException(500, ".NET security demo target missing")
+
+    if shutil.which("dotnet") is None:
+        raise HTTPException(500, "dotnet SDK not found on PATH")
+
+    original = target_src / "Program.cs.original"
+    live     = target_src / "Program.cs"
+    if original.exists():
+        import shutil as sh; sh.copyfile(original, live)
+        log.info("dotnet security demo: restored Program.cs from .original in %s", target_src)
+
+    origin = "http://localhost:8080"
+    params = ScanParams(
+        repo=target_src,
+        mode="full",
+        min_severity=Severity.MEDIUM,
+        max_findings=4,
+        target_endpoint=origin,
+        health_url=f"{origin}/health",
+        test_command=["pytest", "tests/", "-q", "--tb=short"],
+    )
+    runner = _mgr().create(params)
+    return {"scan_id": runner.scan_id, "status": runner.status,
+            "mode": "demo-security-dotnet", "target": str(target_src)}
+
+
+@app.post("/api/scans/demo-efficiency-dotnet")
+async def start_efficiency_dotnet_demo() -> dict[str, Any]:
+    """One-click .NET efficiency demo — profile → refactor → verify → savings.
+    3 findings: 2 VERIFIED + 1 FAILED (no measurable speedup on small collection).
+    """
+    import shutil
+    primary  = Path(r"C:\Users\bhujbalsa\janus-demo-efficiency-dotnet")
+    fallback = Path(__file__).resolve().parents[1] / "sandbox" / "target-perf-dotnet"
+
+    if primary.exists() and (primary / "PaymentProcessor.cs").exists():
+        target_src = primary
+    elif fallback.exists():
+        target_src = fallback
+    else:
+        raise HTTPException(500, ".NET efficiency demo target missing")
+
+    if shutil.which("dotnet") is None:
+        raise HTTPException(500, "dotnet SDK not found on PATH")
+
+    params = ScanParams(
+        repo=target_src,
+        mode="efficiency",
+        min_severity=Severity.MEDIUM,
+        max_findings=3,
+        max_candidates=2,
+        calls_per_year=500_000_000,
+        cpu_cost_per_hour_usd=0.272,
+        grid_region="eu",
+    )
+    runner = _mgr().create(params)
+    return {"scan_id": runner.scan_id, "status": runner.status,
+            "mode": "demo-efficiency-dotnet", "target": str(target_src)}
 
 
 @app.get("/api/efficiency/savings-presets")
