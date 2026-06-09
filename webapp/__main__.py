@@ -30,6 +30,29 @@ def main() -> int:
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
+    # Inject user-level Windows env vars into os.environ so all threads and
+    # subprocesses spawned by the webapp (including PR creation background
+    # threads) can read them via os.environ.get(). Start-Process only passes
+    # the launching shell's env; this ensures GITHUB_TOKEN is always available.
+    if sys.platform == "win32":
+        import os
+        try:
+            import winreg
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment")
+            i = 0
+            while True:
+                try:
+                    name, value, _ = winreg.EnumValue(key, i)
+                    if name not in os.environ:
+                        os.environ[name] = value
+                    i += 1
+                except OSError:
+                    break
+            winreg.CloseKey(key)
+            logging.getLogger("webapp").info("injected user-level env vars into process environment")
+        except Exception as e:
+            logging.getLogger("webapp").debug("could not inject user env vars: %s", e)
+
     url = f"http://{args.host}:{args.port}"
     print(f"\n  Agentic Security Platform UI -> {url}\n")
     if not args.no_open:
