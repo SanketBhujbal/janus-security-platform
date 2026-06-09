@@ -210,13 +210,13 @@ class GitHubEfficiencyPRCreator:
             return ""
 
         repo = self.gh.get_repo(self.repo_slug)
-        open_bodies = self._open_efficiency_pr_bodies(repo)
-        remaining, skipped = dedup_findings(verified, open_bodies)
-        if skipped:
-            log.info("efficiency PR dedup: %d finding(s) already have an open PR", len(skipped))
-        if not remaining:
-            log.info("all verified findings already have open PRs; skipping")
-            return ""
+
+        # Close any stale open efficiency/autofix-* PRs so every demo run
+        # produces a fresh PR. Without this, the fingerprint dedup silently
+        # skips creation because prior open PRs already contain those findings.
+        self._close_stale_efficiency_prs(repo)
+
+        remaining = verified   # bypass dedup — always create a fresh PR
 
         run_id = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
         branch = f"efficiency/autofix-{run_id}"
@@ -250,6 +250,18 @@ class GitHubEfficiencyPRCreator:
         except Exception as e:  # network / perms — dedup is best-effort
             log.warning("efficiency PR dedup: could not list open PRs: %s", e)
         return bodies
+
+    def _close_stale_efficiency_prs(self, repo) -> None:
+        """Close open efficiency/autofix-* PRs so every demo run creates a fresh one.
+        Without this, the fingerprint dedup silently skips PR creation because
+        prior open PRs already contain the same finding fingerprints."""
+        try:
+            for pr in repo.get_pulls(state="open"):
+                if (pr.head.ref or "").startswith("efficiency/autofix-"):
+                    pr.edit(state="closed")
+                    log.info("efficiency PR: closed stale PR #%d (%s)", pr.number, pr.head.ref)
+        except Exception as e:
+            log.warning("efficiency PR: could not close stale PRs: %s", e)
 
     @staticmethod
     def _apply_refactorings_to_source(
