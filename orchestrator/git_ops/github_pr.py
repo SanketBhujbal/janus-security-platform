@@ -291,19 +291,24 @@ class GitHubEfficiencyPRCreator:
 
     @staticmethod
     def _restore_source_files(repo_root: Path, modified: list[Path]) -> None:
-        """Restore modified source files to their last-committed state so the
-        next demo run starts from a clean baseline."""
+        """Switch back to main after the efficiency branch is pushed.
+
+        After _push_branch(), the repo is on the efficiency/autofix-* branch
+        with the refactored code committed. Switching back to main restores all
+        source files to their original (inefficient) state so the next demo run
+        finds the same anti-patterns to fix.
+        """
         if not modified:
             return
         try:
+            env = {**os.environ, "GIT_SSL_NO_VERIFY": "true"}
             subprocess.run(
-                ["git", "checkout", "--"] + [str(p) for p in modified],
-                cwd=repo_root, check=True,
-                env={**os.environ, "GIT_SSL_NO_VERIFY": "true"},
+                ["git", "checkout", "main"],
+                cwd=repo_root, check=True, env=env,
             )
-            log.info("efficiency_pr: restored %d source file(s) to HEAD", len(modified))
+            log.info("efficiency_pr: switched back to main — %d source file(s) restored", len(modified))
         except Exception as e:
-            log.warning("efficiency_pr: could not restore source files: %s", e)
+            log.warning("efficiency_pr: could not switch back to main: %s", e)
 
     def _push_branch(self, repo_root: Path, branch: str) -> None:
         env_git = {
