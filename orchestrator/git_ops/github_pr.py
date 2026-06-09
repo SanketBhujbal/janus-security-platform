@@ -220,7 +220,17 @@ class GitHubEfficiencyPRCreator:
 
         run_id = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
         branch = f"efficiency/autofix-{run_id}"
+
+        # Apply verified refactorings to the source files so git has real
+        # code changes to commit. Restore originals after push so the next
+        # demo run starts from a clean baseline.
+        modified = self._apply_refactorings_to_source(remaining, repo_root)
+
         self._push_branch(repo_root, branch)
+
+        # Restore source files immediately after push for demo repeatability
+        self._restore_source_files(repo_root, modified)
+
         body = render_efficiency_body(remaining, report)
         pr = repo.create_pull(
             title=f"[JANUS] Efficiency refactors — {len(remaining)} verified finding(s)",
@@ -240,6 +250,60 @@ class GitHubEfficiencyPRCreator:
         except Exception as e:  # network / perms — dedup is best-effort
             log.warning("efficiency PR dedup: could not list open PRs: %s", e)
         return bodies
+
+    @staticmethod
+    def _apply_refactorings_to_source(
+        findings: list[dict[str, Any]], repo_root: Path
+    ) -> list[Path]:
+        """Write each verified finding's refactored code into the source file.
+
+        Uses a plain string replacement: original_code → refactored_code.
+        Line-ending normalised before comparison so CRLF/LF differences don't
+        cause misses. Returns the list of files that were actually modified so
+        _restore_source_files() can undo them after the push.
+        """
+        modified: list[Path] = []
+        for f in findings:
+            ref = f.get("refactoring") or {}
+            original  = (ref.get("original_code") or "").strip()
+            refactored = (ref.get("refactored_code") or "").strip()
+            file_str   = (f.get("location") or {}).get("file", "")
+            if not (original and refactored and file_str):
+                continue
+            src = Path(file_str)
+            if not src.exists():
+                continue
+            try:
+                content = src.read_text(encoding="utf-8")
+                # Normalise line endings for comparison then apply
+                norm = content.replace("\r\n", "\n").replace("\r", "\n")
+                orig_norm = original.replace("\r\n", "\n").replace("\r", "\n")
+                if orig_norm not in norm:
+                    log.debug("efficiency_pr: original not found in %s; skipping", src.name)
+                    continue
+                new_content = norm.replace(orig_norm, refactored.replace("\r\n", "\n"), 1)
+                src.write_text(new_content, encoding="utf-8")
+                modified.append(src)
+                log.info("efficiency_pr: applied refactoring to %s", src.name)
+            except OSError as e:
+                log.warning("efficiency_pr: could not write %s: %s", src, e)
+        return modified
+
+    @staticmethod
+    def _restore_source_files(repo_root: Path, modified: list[Path]) -> None:
+        """Restore modified source files to their last-committed state so the
+        next demo run starts from a clean baseline."""
+        if not modified:
+            return
+        try:
+            subprocess.run(
+                ["git", "checkout", "--"] + [str(p) for p in modified],
+                cwd=repo_root, check=True,
+                env={**os.environ, "GIT_SSL_NO_VERIFY": "true"},
+            )
+            log.info("efficiency_pr: restored %d source file(s) to HEAD", len(modified))
+        except Exception as e:
+            log.warning("efficiency_pr: could not restore source files: %s", e)
 
     def _push_branch(self, repo_root: Path, branch: str) -> None:
         env_git = {

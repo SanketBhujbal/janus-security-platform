@@ -668,7 +668,7 @@ async def start_efficiency_dotnet_demo() -> dict[str, Any]:
         repo=target_src,
         mode="efficiency",
         min_severity=Severity.MEDIUM,
-        max_findings=2,       # 2 findings = guaranteed 5-7 min (3 was 11-16 min due to LLM variance)
+        max_findings=3,
         max_candidates=1,
         calls_per_year=500_000_000,
         cpu_cost_per_hour_usd=0.272,
