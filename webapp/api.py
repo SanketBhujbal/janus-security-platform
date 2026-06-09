@@ -13,6 +13,25 @@ from __future__ import annotations
 
 import asyncio
 import json
+
+
+def _server_github_token() -> str | None:
+    """Read GITHUB_TOKEN from env first, then Windows user-level registry.
+
+    Start-Process only inherits the spawning shell's env vars, not user-level
+    vars set via SetEnvironmentVariable('User'). The registry fallback means
+    the token is always available regardless of how the webapp was launched.
+    """
+    token = os.environ.get("GITHUB_TOKEN")
+    if not token and os.name == "nt":
+        try:
+            import winreg
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment")
+            token, _ = winreg.QueryValueEx(key, "GITHUB_TOKEN")
+            winreg.CloseKey(key)
+        except (ImportError, OSError):
+            pass
+    return token or None
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -603,7 +622,7 @@ async def start_security_dotnet_demo() -> dict[str, Any]:
         log.info("dotnet security demo: restored Program.cs from .original in %s", target_src)
 
     origin = "http://localhost:8080"
-    gh_token = os.environ.get("GITHUB_TOKEN")
+    gh_token = _server_github_token()
     params = ScanParams(
         repo=target_src,
         mode="full",
@@ -649,7 +668,7 @@ async def start_efficiency_dotnet_demo() -> dict[str, Any]:
         repo=target_src,
         mode="efficiency",
         min_severity=Severity.MEDIUM,
-        max_findings=3,
+        max_findings=2,       # 2 findings = guaranteed 5-7 min (3 was 11-16 min due to LLM variance)
         max_candidates=1,
         calls_per_year=500_000_000,
         cpu_cost_per_hour_usd=0.272,
